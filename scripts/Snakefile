@@ -48,24 +48,36 @@ CHROMS = [str(x) for x in range(1, 23)]
 
 #ADD RFMIX RUN PARAMETERS TO CONFIG FILE AND PULL THAT INFO TO FORMULATE ARGUMENTS IN SNAKEMAKE CALL
 
+#Make subdirectories
+if not os.path.exists("vcfs"): os.mkdir("vcfs")
+if not os.path.exists("bcfs"): os.mkdir("bcfs")
+if not os.path.exists("rfmix"): os.mkdir("rfmix")
+
 rule all:
 	input:
-		expand("{OUT}/bcfs/{BASE}.chr{chrom}.phz.bcf", chrom=CHROMS),
-		expand("{OUT}/rfmix/{BASE}.chr{chrom}.rfmix.Q", chrom=CHROMS),
-		
-rule parse_phase_plink:
-	input: QUERY
-	output: "{OUT}/bcfs/{BASE}.chr{chrom}.phz.bcf"
-	params:
-	run: 
-		shell("sh {CODE}/phase.sh {input} {MAPFILE} {BASE}.chr{chrom} {chrom} 6")
+		expand("{OUT}/rfmix/{BASE}.chr{chrom}.rfmix.Q", chrom=CHROMS)
 
+rule parse_plink:
+	input: QUERY
+	output: "vcfs/{BASE}.chr{chrom}.vcf"
+	shell: "module load plink/1.90b6.10; plink --bfile {QUERY} --chr {chrom} --out vcfs/{BASE}.chr{chrom} --recode vcf-iid"
+
+rule compress_and_index:
+	input: "vcfs/{BASE}.chr{chrom}.vcf"
+	output: "vcfs/{BASE}.chr{chrom}.vcf.gz"
+	shell: "module load htslib/1.6; bgzip vcfs/{BASE}.chr{chrom}.vcf; tabix -p vcf vcfs/{BASE}.chr{chrom}.vcf.gz"
+
+rule phase:
+	input: "vcfs/{BASE}.chr{chrom}.vcf.gz"
+	output: "/bcfs/{BASE}.chr{chrom}.phz.bcf"
+	shell: 
+		"module load bcftools/1.9; shapeit4 -I {input} -M {MAPFILE} -O /bcfs/{BASE}.chr{chrom}.phz.bcf --region {chrom} 6 && bcftools index /bcfs/{BASE}.chr{chrom}.phz.bcf"
 
 rule infer_ancestry:
-	input: "{OUT}/bcfs/{BASE}.chr{chrom}.phz.bcf"
-	output: "{OUT}/rfmix/{BASE}.chr{chrom}.rfmix.Q"
-	run:
-		shell("module load bcftools/1.9; rfmix -f {input} -r {REFFILE} -m {NEW_POPFILE} -g {MAPFILE} -o {OUT}/{BASE}.{chrom} --chromosome={chrom} --n-threads={RF_THREADS} -G {RF_GEN} {RF_REANALYZE}")
+	input: "bcfs/{BASE}.chr{chrom}.phz.bcf"
+	output: "rfmix/{BASE}.chr{chrom}.rfmix.Q"
+	shell:
+		"module load bcftools/1.9; rfmix -f {input} -r {REFFILE} -m {NEW_POPFILE} -g {MAPFILE} -o {OUT}/{BASE}.{chrom} --chromosome={chrom} --n-threads={RF_THREADS} -G {RF_GEN} {RF_REANALYZE}"
 
 
 
