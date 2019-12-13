@@ -1,0 +1,22 @@
+dir:
+  main: "/home/spectorl/pmonnaha/ancestry/"
+  scratch: "/scratch.global/pmonnaha/"
+  out: "/scratch.global/pmonnaha/snakemake_testing/"
+  code: "/home/spectorl/pmonnaha/code/"
+job:
+  qsub_small: "-V -m a -d . -q small -r n -M pmonnaha@umn.edu -l walltime=12:00:00 -l nodes=1:ppn=1 -l mem=4gb"
+  qsub_large: "-V -m a -d . -q small -r n -M pmonnaha@umn.edu -l walltime=24:00:00 -l nodes=1:ppn=6 -l mem=32gb"
+query:
+  ALL: "/home/spectorl/pmonnaha/data/QC_allRaces/all_aric_merged"
+reference:
+  hg19:
+    vcf: "/home/spectorl/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz"
+    superpops: "/home/spectorl/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
+    subpops: "/home/spectorl/pmonnaha/misc/1000G_PopLabels.txt"
+    genmap: "/home/spectorl/pmonnaha/accessory/genetic_map_hg19.txt"
+rfmix:
+  generations: "12" #Generations since admixture began
+  reanalyze_reference: "true" #In the case a set of reference haplotypes may not be of "pure" ancestry and may themselves be somewhat admixed, the option --reanalyze-reference will cause the program to analyze the reference haplotypes as if they were query haplotypes, in addition to analyzing the query input.
+  ref_pops: "YRI,CEU,PUR" #Reference Populations to include.  Labels for each reference population is specified in pop_names
+  pop_names: "AFR,EUR,AMR" #Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
+  threads: "6" # Number of processors to use for parallel computation

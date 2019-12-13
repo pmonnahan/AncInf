@@ -1,0 +1,92 @@
+# Get the date
+from datetime import datetime
+i = datetime.now()
+TIME = i.strftime('%Y-%m-%d')
+
+#Load modules
+import glob
+import os
+import sub
+
+
+#Parse config.yml file
+SCRATCH=config['dir']['scratch']
+OUT=config['dir']['out']
+QUERY=config['query']['ALL']
+REFFILE=config['reference']['hg19']['vcf']
+POPFILE=config['reference']['hg19']['subpops']
+MAPFILE=config['reference']['hg19']['genmap']
+CODE=config['dir']['code']
+RF_GEN=config['rfmix']['generations']
+RF_THREADS=config['rfmix']['threads']
+RF_REANALYZE=config['rfmix']['reanalyze_reference']
+
+if RF_REANALYZE == 'true':
+	RF_REANALYZE = '--reanalyze_reference -e 10'
+else:
+	RF_REANALYZE = ''
+
+#Make new Population map file with the populations specified in ref_pops in config.yml.  Rename these populations as labelled in pop_names in config.yml
+if RF_REFPOPS == "all":
+	NEW_POPFILE = POPFILE
+else:
+	NEW_POPFILE = "Population_Map_File.txt"
+	RF_REFPOPS=config['rfmix']['ref_pops'].split(",")
+	RF_POPNAME=config['rfmix']['pop_names'].split(",")
+	POPS = dict(zip(RF_REFPOPS, RF_POPNAME))
+	with open(NEW_POPFILE, 'wb') as new_file: 
+		with open(POPFILE, mode='rb') as pop_file:
+			for line in pop_file:
+				ind = line.split()
+				pop = line.split()[1]
+				if pop in POPS.keys():
+					new_pop = POPS[pop]
+					new_file.writelines(f"{ind} {new_pop}")
+
+BASE=os.path.basename(QUERY)
+CHROMS = [str(x) for x in range(1, 23)]
+
+#ADD RFMIX RUN PARAMETERS TO CONFIG FILE AND PULL THAT INFO TO FORMULATE ARGUMENTS IN SNAKEMAKE CALL
+
+rule all:
+	input:
+		expand("{OUT}/bcfs/{BASE}.chr{chrom}.phz.bcf", chrom=CHROMS),
+		expand("{OUT}/rfmix/{BASE}.chr{chrom}.rfmix.Q", chrom=CHROMS),
+		
+rule parse_phase_plink:
+	input: QUERY
+	output: "{OUT}/bcfs/{BASE}.chr{chrom}.phz.bcf"
+	params:
+	run: 
+		shell("sh {CODE}/phase.sh {input} {MAPFILE} {BASE}.chr{chrom} {chrom} 6")
+
+
+rule infer_ancestry:
+	input: "{OUT}/bcfs/{BASE}.chr{chrom}.phz.bcf"
+	output: "{OUT}/rfmix/{BASE}.chr{chrom}.rfmix.Q"
+	run:
+		shell("module load bcftools/1.9; rfmix -f {input} -r {REFFILE} -m {NEW_POPFILE} -g {MAPFILE} -o {OUT}/{BASE}.{chrom} --chromosome={chrom} --n-threads={RF_THREADS} -G {RF_GEN} {RF_REANALYZE}")
+
+
+
+# rule all:
+# 	input:
+# 		expand("{dir}/{run}_quota_aln.txt", run=RUNS,dir=DIR),
+# 		expand("{dir}/{run}/{run}_designated.txt", run=RUNS, dir=DIR)
+
+# rule filter_quota_align:
+# 	input: DATA+"/{run}/{run}_quota-alignment.txt"
+# 	output: "{DIR}/{run}_quota_aln.txt"
+# 	run:
+# 		shell("perl {CODE}/filter_quota_align.pl -i {input} -o {output}")
+
+# rule fetch_syntelogs:
+# 	input: DATA+"/{run}/{run}_final-syntenic-gene-set.txt"
+# 	output: "{DIR}/{run}/{run}_designated.txt"
+# 	params: ref = '{run}'
+# 	run:
+# 		shell("perl {CODE}/filter_condensed_syntelog.pl -i {input} -o {output[0]} -c {params.ref}")
+
+
+
+
