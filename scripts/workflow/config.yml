@@ -14,9 +14,11 @@ reference:
     superpops: "/home/spectorl/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
     subpops: "/home/spectorl/pmonnaha/misc/1000G_PopLabels.txt"
     genmap: "/home/spectorl/pmonnaha/accessory/genetic_map_hg19.txt"
+phase:
+  threads: "6"
 rfmix:
   generations: "12" #Generations since admixture began
   reanalyze_reference: "true" #In the case a set of reference haplotypes may not be of "pure" ancestry and may themselves be somewhat admixed, the option --reanalyze-reference will cause the program to analyze the reference haplotypes as if they were query haplotypes, in addition to analyzing the query input.
   ref_pops: "YRI,CEU,PUR" #Reference Populations to include.  Labels for each reference population is specified in pop_names
   pop_names: "AFR,EUR,AMR" #Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
-  threads: "6" # Number of processors to use for parallel computation
+  threads: "12" # Number of processors to use for parallel computation
