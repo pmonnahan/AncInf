@@ -61,4 +61,29 @@ The workflow described below uses Snakemake to coordinate the parallel execution
 at the command line on MSI.
 
 ## Running the workflow
+Clone this repository to the location where you want to store the output of the pipeline.
 
+    git clone https://github.com/pmonnahan/AncInf.git rfmix_test
+    cd rfmix_test
+    
+The critical files responsible for executing the pipeline are contained in the *./workflow* subdirectory contained within the cloned repo.  They are: 
+
+* Snakefile
+* config.yml
+* cluster.yaml  
+
+The **Snakefile** is the primary workhouse of _snakemake_, which specifies the dependencies of various parts of the pipeline and coordinates their submission as jobs to the MSI cluster.  No modifications to the **Snakefile** are necessary.  However, in order for the **Snakefile** to locate all of the necessary input and correctly submit jobs to the cluster, **both** the config.yaml and cluster.yaml need to be modified.
+
+Once these files have been modified, the entire pipeline can be run from within the cloned folder via:
+
+    snakemake --cluster "qsub -l {cluster.l} -M {cluster.M} -A {cluster.A} -m {cluster.m} -o {cluster.o} -e {cluster.e} -r {cluster.r}" --cluster-config workflow/cluster.yaml -j 32
+where -j specifies the number of jobs that can be submitted at once.  
+
+The pipeline is currently set up to run on the _small_ queue on the _mesabi_ cluster, which has a per-user submission limit of 500 jobs.  This is more than enough for the entire pipeline, so running with -n 500 will submit all necessary jobs as soon as possible.  If -j is small (e.g. 32), snakemake will submit the first 32 jobs and then submit subsequent jobs as these first jobs finish.
+
+The attractive feature of _snakemake_ is its ability to keep track of the progress and dependencies of the different stages of the pipeline.  Specifically, if an error is encountered or the pipeline otherwise stops before the final step, _snakemake_ can resume the pipeline where it left off, avoiding redundant computation for previously completed tasks.  
+
+To run a specific part of the pipeline, do:
+
+    snakemake -R <rule_name> --cluster "qsub -l {cluster.l} -M {cluster.M} -A {cluster.A} -m {cluster.m} -o {cluster.o} -e {cluster.e} -r {cluster.r}" --cluster-config workflow/cluster.yaml -j 20 --rerun-incomplete
+where _rule\_name_ indicates the 'rule' (i.e. job) in the Snakefile that you wish to run.
