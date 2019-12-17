@@ -60,6 +60,12 @@ The workflow described below uses Snakemake to coordinate the parallel execution
     pip3 install --user snakemake pyaml
 at the command line on MSI.
 
+## Data preparation
+
+We assume that the reference VCF file has been filtered, phased, and indexed.  
+
+The query data for ancestry inference should be provided in PLINK format.  Additionally, SNPs with substantial missing data (e.g. >10%) should be removed from the data.  
+
 ## Running the workflow
 Clone this repository to the location where you want to store the output of the pipeline.
 
@@ -72,7 +78,7 @@ The critical files responsible for executing the pipeline are contained in the *
 * config.yml
 * cluster.yaml  
 
-The **Snakefile** is the primary workhouse of _snakemake_, which specifies the dependencies of various parts of the pipeline and coordinates their submission as jobs to the MSI cluster.  No modifications to the **Snakefile** are necessary.  However, in order for the **Snakefile** to locate all of the necessary input and correctly submit jobs to the cluster, **both** the config.yaml and cluster.yaml need to be modified.
+The **Snakefile** is the primary workhouse of _snakemake_, which specifies the dependencies of various parts of the pipeline and coordinates their submission as jobs to the MSI cluster.  No modifications to the **Snakefile** are necessary.  However, in order for the **Snakefile** to locate all of the necessary input and correctly submit jobs to the cluster, **both** the config.yaml and cluster.yaml need to be modified.  Open these files and change the entries that are indicated with 'MODIFY'.  
 
 Once these files have been modified, the entire pipeline can be run from within the cloned folder via:
 
