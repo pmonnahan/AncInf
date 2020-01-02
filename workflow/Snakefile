@@ -1,117 +1,102 @@
-# Get the date
-from datetime import datetime
-i = datetime.now()
-TIME = i.strftime('%Y-%m-%d')
-
-#Load modules
+# Load modules
 import glob
 import os
 import subprocess
 import pdb
 
-#Specify config file
+# Get the date
+from datetime import datetime
+i = datetime.now()
+TIME = i.strftime('%Y-%m-%d')
+
+# Specify config file
 configfile: "workflow/config.yml"
 
-#Parse config.yml file
-SCRATCH=config['dir']['scratch']
-OUT=config['dir']['out']
-QUERY=config['query']['ALL']
-REFFILE=config['reference']['hg19']['vcf']
-POPFILE=config['reference']['hg19']['subpops']
-MAPFILE=config['reference']['hg19']['genmap']
-CODE=config['dir']['code']
-PHASE_THREADS=config['phase']['threads']
-RF_GEN=config['rfmix']['generations']
-RF_THREADS=config['rfmix']['threads']
-RF_REANALYZE=config['rfmix']['reanalyze_reference']
-RF_REFPOPS=config['rfmix']['ref_pops']
-RF_POPNAME=config['rfmix']['pop_names']
+# Parse config.yml file
+SCRATCH = config['dir']['scratch']
+OUT = config['dir']['out']
+QUERY = config['query']['ALL']
+REFFILE = config['reference']['hg19']['vcf']
+POPFILE = config['reference']['hg19']['subpops']
+MAPFILE = config['reference']['hg19']['genmap']
+CODE = config['dir']['code']
+PHASE_THREADS = config['phase']['threads']
+RF_GEN = config['rfmix']['generations']
+RF_THREADS = config['rfmix']['threads']
+RF_REANALYZE = config['rfmix']['reanalyze_reference']
+RF_REFPOPS = config['rfmix']['ref_pops']
+RF_POPNAME = config['rfmix']['pop_names']
+CHROMS = config['chroms']
 
-if RF_REANALYZE == 'true': #If set to true, the reference populations will be reanalyzed.  Useful for when reference populations are themselves admixed.
-	RF_REANALYZE = '--reanalyze-reference -e 6'
+# If set to true, the reference populations will be reanalyzed.  Useful for when reference populations are themselves admixed.
+if RF_REANALYZE == 'true':
+    RF_REANALYZE = '--reanalyze-reference -e 6'
 else:
-	RF_REANALYZE = ''
+    RF_REANALYZE = ''
 
-#Set default internal variables
+# Set default internal variables
 PHASE_MAP = "accessory/Shapeit4_genetic_map"
 NEW_POPFILE = "accessory/Population_Map_File.txt"
-BASE=os.path.basename(QUERY)
-CHROMS = [str(x) for x in range(1, 23)]
+BASE = os.path.basename(QUERY)
 
-#Make subdirectories
-if not os.path.exists("vcfs"): os.mkdir("vcfs")
-if not os.path.exists("bcfs"): os.mkdir("bcfs")
-if not os.path.exists("rfmix"): os.mkdir("rfmix")
-if not os.path.exists("accessory"): os.mkdir("accessory")
-if not os.path.exists("OandE"): os.mkdir("OandE")
+if CHROMS == 'all':
+    CHROMS = [str(x) for x in range(1, 23)]
+
+# Make subdirectories
+if not os.path.exists("vcfs"):
+    os.mkdir("vcfs")
+if not os.path.exists("bcfs"):
+    os.mkdir("bcfs")
+if not os.path.exists("rfmix"):
+    os.mkdir("rfmix")
+if not os.path.exists("accessory"):
+    os.mkdir("accessory")
+if not os.path.exists("OandE"):
+    os.mkdir("OandE")
 
 # pdb.set_trace()
 
 localrules: all, phase_map, pop_map
 
 rule all:
-	input:
-		expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
-		expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
+    input:
+        expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
+        expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
 
 rule clean:
-	shell:
-		"rm vcfs/*; rm bcfs/*; rm rfmix/*"
+    shell:
+        "rm vcfs/*; rm bcfs/*; rm rfmix/*"
 
 rule parse_plink:
-	input: f"{QUERY}.bed"
-	output: f"vcfs/{BASE}.chr{{chrom}}.vcf"
-	shell: f"module load plink/1.90b6.10; plink --bfile {QUERY} --chr {{wildcards.chrom}} --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
+    input: f"{QUERY}.bed"
+    output: f"vcfs/{BASE}.chr{{chrom}}.vcf"
+    shell: f"module load plink/1.90b6.10; plink --bfile {QUERY} --chr {{wildcards.chrom}} --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
 
 rule compress_and_index:
-	input: f"vcfs/{BASE}.chr{{chrom}}.vcf"
-	output: f"vcfs/{BASE}.chr{{chrom}}.vcf.gz"
-	shell: f"module load htslib/1.6; bgzip vcfs/{BASE}.chr{{wildcards.chrom}}.vcf; tabix -p vcf vcfs/{BASE}.chr{{wildcards.chrom}}.vcf.gz"
+    input: f"vcfs/{BASE}.chr{{chrom}}.vcf"
+    output: f"vcfs/{BASE}.chr{{chrom}}.vcf.gz"
+    shell: f"module load htslib/1.6; bgzip vcfs/{BASE}.chr{{wildcards.chrom}}.vcf; tabix -p vcf vcfs/{BASE}.chr{{wildcards.chrom}}.vcf.gz"
 
 rule phase_map:
-	input: MAPFILE
-	output: "accessory/Shapeit4_genetic_map{chrom}"
-	shell: "python3.6 workflow/phase_map.py -i {input}"
+    input: MAPFILE
+    output: "accessory/Shapeit4_genetic_map{chrom}"
+    shell: "python3.6 workflow/phase_map.py -i {input}"
 
 rule phase:
-	input: 
-		f"vcfs/{BASE}.chr{{chrom}}.vcf.gz",
-		"accessory/Shapeit4_genetic_map{chrom}"
-	output: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf"
-	shell: 
-		f"module load bcftools/1.9; shapeit4 -I {{input}} -M {PHASE_MAP}{{wildcards.chrom}} -O bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --region {{wildcards.chrom}} -T {PHASE_THREADS} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf"
+    input:
+        f"vcfs/{BASE}.chr{{chrom}}.vcf.gz",
+        "accessory/Shapeit4_genetic_map{chrom}"
+    output: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf"
+    shell:
+        f"module load bcftools/1.9; shapeit4 -I {{input}} -M {PHASE_MAP}{{wildcards.chrom}} -O bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --region {{wildcards.chrom}} -T {PHASE_THREADS} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf"
 
 rule pop_map:
-	input: POPFILE
-	output: "accessory/Population_Map_File.txt"
-	shell: f"python3.6 workflow/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
+    input: POPFILE
+    output: "accessory/Population_Map_File.txt"
+    shell: f"python3.6 workflow/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
 
 rule infer_ancestry:
-	input: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", "accessory/Population_Map_File.txt"
-	output: f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q"
-	shell:
-		f"module load bcftools/1.9; rfmix -f {{input[0]}} -r {REFFILE} -m {{input[1]}} -g {MAPFILE} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={RF_THREADS} -G {RF_GEN} {RF_REANALYZE}"
-
-
-
-# rule all:
-# 	input:
-# 		expand("{dir}/{run}_quota_aln.txt", run=RUNS,dir=DIR),
-# 		expand("{dir}/{run}/{run}_designated.txt", run=RUNS, dir=DIR)
-
-# rule filter_quota_align:
-# 	input: DATA+"/{run}/{run}_quota-alignment.txt"
-# 	output: "{DIR}/{run}_quota_aln.txt"
-# 	run:
-# 		shell("perl {CODE}/filter_quota_align.pl -i {input} -o {output}")
-
-# rule fetch_syntelogs:
-# 	input: DATA+"/{run}/{run}_final-syntenic-gene-set.txt"
-# 	output: "{DIR}/{run}/{run}_designated.txt"
-# 	params: ref = '{run}'
-# 	run:
-# 		shell("perl {CODE}/filter_condensed_syntelog.pl -i {input} -o {output[0]} -c {params.ref}")
-
-
-
-
+    input: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", "accessory/Population_Map_File.txt"
+    output: f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q"
+    shell:
+        f"module load bcftools/1.9; rfmix -f {{input[0]}} -r {REFFILE} -m {{input[1]}} -g {MAPFILE} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={RF_THREADS} -G {RF_GEN} {RF_REANALYZE}"

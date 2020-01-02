@@ -16,9 +16,9 @@ def phase_map(input_file, output_prefix):
 	newmap.close()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-i', type=str, metavar='input_map', required=True, help='')
-    parser.add_argument('-o', type=str, metavar='output_prefix', default="accessory/Shapeit4_genetic_map")
+	parser = argparse.ArgumentParser(description='')
+	parser.add_argument('-i', type=str, metavar='input_map', required=True, help='')
+	parser.add_argument('-o', type=str, metavar='output_prefix', default="accessory/Shapeit4_genetic_map")
 	args = parser.parse_args()
 
 	phase_map(args.i, args.o)
