@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument('--ind', help='Individual ID, must match an individual in the rfmix Viterbi output',
                         required=True)
     parser.add_argument('--chrX', help='include chrX?', default=False, action="store_true")
+    parser.add_argument('--Qual', help='Determine number of SNPs failing threshold check; causes a large slowdown', default=False, action="store_true")
     parser.add_argument('--out', help='prefix to bed file, _A.bed and _B.bed will be appended', required=True)
 
     args = parser.parse_args()
@@ -75,81 +76,49 @@ def find_haplotype_bounds(index, add, chrom, pop_order, hap):
 
     last_anc_pos_cm = [None, None, 0]
 
-    # Skip header lines in sis and fb files
-    my_reg = msp.readline().strip().split()
-    my_reg = msp.readline().strip().split()
-    assert my_reg[0] == "#chm", "Error parsing header of msp file"
+    fbk_line = fbk.readline().strip()
+    fbk_line = fbk.readline().strip()
+    assert fbk_line.startswith("chrom")
+    fbk_line = fbk.readline().strip().split() # First actual snp
+    curr_pos = int(fbk_line[1])
 
-    # Get first non-header line of msp file
-    my_reg = msp.readline().strip().split()
-    start, end, gstart, gend = my_reg[1:5]
-    my_reg = my_reg[6:]
-    pop_label = my_reg[index * 2 + add]
 
     counter = 0
-    curr_pos = 0
-    for line in fbk:
+    for line in msp:
+        bad_snps = 0
+
         if line.startswith("#") or line.startswith("chrom"):
             continue
 
         counter += 1
         myLine = line.strip().split()  # start index is hardcoded at 6
+        start, end, gstart, gend, num_snps = myLine[1:6]
 
+        if args.Qual:
+            # Figure out how many SNPs in this region fall below a threshold.
+            while int(start) <= curr_pos <= int(end):
+                # pdb.set_trace()
+                fbk_max = []
+                for i in grouper(npop, fbk_line):
+                    fbk_max.append(max(i))
+                # pdb.set_trace()
+                if fbk_max[index * 2 + add] < args.fbk_threshold:
+                    # pdb.set_trace()
+                    bad_snps += 1
+                fbk_line = fbk.readline().strip().split()  # First actual snp
+                try:
+                    curr_pos = int(fbk_line[1])
+                except IndexError:
+                    break
+
+        myLine = myLine[6:]
+        pop_label = myLine[index * 2 + add]
         # pdb.set_trace()
-        pos, gpos = myLine[1:3]
 
-        # Check that SNP from fbk file resides within the current region given by msp file
-        if int(start) <= int(pos) <= int(end):
-            pass
-        else:  # If not, increment msp file and HOPE that next window captures the SNP.
-            my_reg = msp.readline().strip().split()
-            start, end, gstart, gend = my_reg[1:5]
-            assert int(start) < int(pos) < int(end), "window increment did not capture current SNP"
-            my_reg = my_reg[6:]
-            pop_label = my_reg[index * 2 + add]
+        hap.write(str(chrom) + '\t' + start + '\t' + end + '\t' +
+                  pop_order[int(pop_label)] + '\t' +
+                  gstart + '\t' + gend + '\t' + str(bad_snps) + '\t' + str(num_snps) + '\n')
 
-        fbk_max = []
-        # TODO: handle the hash signs in the header lines of fbk and snp_locations
-        for i in grouper(npop, myLine):
-            fbk_max.append(max(i))
-        # pdb.set_trace()
-        if fbk_max[index * 2 + add] < args.fbk_threshold:
-            # pdb.set_trace()
-            pop_label = -9
-        else:
-            pop_label = my_reg[index * 2 + add]
-        # fencepost for start of the chromosome
-        if counter == 1:
-            last_anc_pos_cm = [pop_label, pos, gpos]
-            post_anc_pos_cm = [pop_label, pos, gpos]
-            continue
-
-        # start regular iterations
-        current_anc_pos_cm = [pop_label, pos, gpos]
-        if current_anc_pos_cm[0] == last_anc_pos_cm[0]:
-            last_anc_pos_cm = current_anc_pos_cm
-            continue
-        else:
-            # we've reached the end of a region. Need to print.
-            if last_anc_pos_cm[0] == -9:
-                hap.write(str(chrom) + '\t' + post_anc_pos_cm[1] + '\t' + last_anc_pos_cm[1] +
-                          '\tUNK\t' + post_anc_pos_cm[2] + '\t' + last_anc_pos_cm[2] + '\n')
-            else:
-                hap.write(str(chrom) + '\t' + post_anc_pos_cm[1] + '\t' + last_anc_pos_cm[1] + '\t' +
-                          pop_order[int(last_anc_pos_cm[0])] + '\t' +
-                          post_anc_pos_cm[2] + '\t' + last_anc_pos_cm[2] + '\n')
-            post_anc_pos_cm = current_anc_pos_cm
-
-        last_anc_pos_cm = current_anc_pos_cm
-
-    # last iteration, still need to print
-    if last_anc_pos_cm[0] == -9:
-        hap.write(str(chrom) + '\t' + post_anc_pos_cm[1] + '\t' + current_anc_pos_cm[1] +
-                  '\tUNK\t' + post_anc_pos_cm[2] + '\t' + current_anc_pos_cm[2] + '\n')
-    else:
-        hap.write(str(chrom) + '\t' + post_anc_pos_cm[1] + '\t' + current_anc_pos_cm[1] +
-                  '\t' + pop_order[int(current_anc_pos_cm[0])] + '\t' +
-                  post_anc_pos_cm[2] + '\t' + current_anc_pos_cm[2] + '\n')
     print("Finished chromosome " + str(chrom))
 
 

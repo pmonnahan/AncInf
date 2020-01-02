@@ -37,6 +37,12 @@ else:
 # Set default internal variables
 PHASE_MAP = "accessory/Shapeit4_genetic_map"
 NEW_POPFILE = "accessory/Population_Map_File.txt"
+INDS = []
+with open(NEW_POPFILE, 'r') as pop_file:
+    for line in pop_file:
+        ind = line.strip().split()[0]
+        INDS.append(ind)
+
 BASE = os.path.basename(QUERY)
 
 if CHROMS == 'all':
@@ -51,6 +57,10 @@ if not os.path.exists("rfmix"):
     os.mkdir("rfmix")
 if not os.path.exists("accessory"):
     os.mkdir("accessory")
+if not os.path.exists("beds"):
+    os.mkdir("beds")
+if not os.path.exists("karyograms"):
+    os.mkdir("karyograms")
 if not os.path.exists("OandE"):
     os.mkdir("OandE")
 
@@ -62,6 +72,8 @@ rule all:
     input:
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
         expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
+        expand(f"beds/{{ind}}_A.bed", ind=INDS),
+        expand(f"karyograms/{{ind}}_karyo.png", ind=INDS),
 
 rule clean:
     shell:
@@ -100,3 +112,15 @@ rule infer_ancestry:
     output: f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q"
     shell:
         f"module load bcftools/1.9; rfmix -f {{input[0]}} -r {REFFILE} -m {{input[1]}} -g {MAPFILE} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={RF_THREADS} -G {RF_GEN} {RF_REANALYZE}"
+
+rule make_hap_beds:
+    input: f"rfmix/{BASE}.chr{{chrom}}.fb.tsv"
+    output: "beds/{ind}_A.bed"
+    shell:
+        f"conda activate py27; python workflow/collapse_ancestry.py --rfmix rfmix/{BASE} --ind {{ind}} --out beds/{{ind}}"
+
+rule plot_karyograms:
+    input: "beds/{ind}_A.bed", "beds/pop_order.txt"
+    output "karyograms/{ind}_karyo.png"
+    shell:
+        f"conda activate py27; python workflow/plot_karyograms.py --bed_a beds/{{ind}}_A.bed --bed_b beds/{{ind}}_B.bed --ind {{ind}} --centromeres accessory/centromeres_hg19.bed --pop_order beds/pop_order.txt --out karyograms/{{ind}}_karyo.png"
