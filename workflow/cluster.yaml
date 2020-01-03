@@ -16,3 +16,12 @@ phase:
 infer_ancestry:
   queue: small
   l: 'nodes=1:ppn=12,walltime=48:00:00,mem=32gb'
+
+make_hap_beds:
+  queue: small
+  l: 'nodes=1:ppn=1,walltime=00:30:00,mem=3gb'
+
+plot_karyograms:
+  queue: small
+  l: 'nodes=1:ppn=1,walltime=00:30:00,mem=3gb'
+

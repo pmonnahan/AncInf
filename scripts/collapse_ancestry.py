@@ -109,7 +109,6 @@ def find_haplotype_bounds(index, add, chrom, pop_order, hap):
             pop_label = my_reg[index * 2 + add]
 
         fbk_max = []
-        # TODO: handle the hash signs in the header lines of fbk and snp_locations
         for i in grouper(npop, myLine):
             fbk_max.append(max(i))
         # pdb.set_trace()

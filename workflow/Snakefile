@@ -37,8 +37,9 @@ else:
 # Set default internal variables
 PHASE_MAP = "accessory/Shapeit4_genetic_map"
 NEW_POPFILE = "accessory/Population_Map_File.txt"
+
 INDS = []
-with open(NEW_POPFILE, 'r') as pop_file:
+with open(QUERY + ".fam", 'r') as pop_file:
     for line in pop_file:
         ind = line.strip().split()[0]
         INDS.append(ind)
@@ -68,6 +69,8 @@ if not os.path.exists("OandE"):
 
 localrules: all, phase_map, pop_map
 
+RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
+
 rule all:
     input:
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
@@ -77,7 +80,7 @@ rule all:
 
 rule clean:
     shell:
-        "rm vcfs/*; rm bcfs/*; rm rfmix/*"
+        "rm vcfs/*; rm bcfs/*; rm rfmix/*; rm beds/*; rm karyograms/*"
 
 rule parse_plink:
     input: f"{QUERY}.bed"
@@ -92,7 +95,7 @@ rule compress_and_index:
 rule phase_map:
     input: MAPFILE
     output: "accessory/Shapeit4_genetic_map{chrom}"
-    shell: "python3.6 workflow/phase_map.py -i {input}"
+    shell: "python3.6 scripts/phase_map.py -i {input}"
 
 rule phase:
     input:
@@ -105,7 +108,7 @@ rule phase:
 rule pop_map:
     input: POPFILE
     output: "accessory/Population_Map_File.txt"
-    shell: f"python3.6 workflow/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
+    shell: f"python3.6 scripts/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
 
 rule infer_ancestry:
     input: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", "accessory/Population_Map_File.txt"
@@ -114,13 +117,19 @@ rule infer_ancestry:
         f"module load bcftools/1.9; rfmix -f {{input[0]}} -r {REFFILE} -m {{input[1]}} -g {MAPFILE} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={RF_THREADS} -G {RF_GEN} {RF_REANALYZE}"
 
 rule make_hap_beds:
-    input: f"rfmix/{BASE}.chr{{chrom}}.fb.tsv"
+    input: RFMIX_OUT
     output: "beds/{ind}_A.bed"
     shell:
-        f"conda activate py27; python workflow/collapse_ancestry.py --rfmix rfmix/{BASE} --ind {{ind}} --out beds/{{ind}}"
+        f"source activate py27; python scripts/msp2bed.py --rfmix rfmix/{BASE} --ind {{wildcards.ind}} --out beds/{{wildcards.ind}}"
 
 rule plot_karyograms:
-    input: "beds/{ind}_A.bed", "beds/pop_order.txt"
-    output "karyograms/{ind}_karyo.png"
+    input: "beds/{ind}_A.bed"
+    output: "karyograms/{ind}_karyo.png"
     shell:
-        f"conda activate py27; python workflow/plot_karyograms.py --bed_a beds/{{ind}}_A.bed --bed_b beds/{{ind}}_B.bed --ind {{ind}} --centromeres accessory/centromeres_hg19.bed --pop_order beds/pop_order.txt --out karyograms/{{ind}}_karyo.png"
+        f"source activate py27; python scripts/plot_karyogram.py --bed_a beds/{{wildcards.ind}}_A.bed --bed_b beds/{{wildcards.ind}}_B.bed --ind {{wildcards.ind}} --centromeres accessory/centromeres_hg19.bed --pop_order beds/pop_order.txt --out karyograms/{{wildcards.ind}}_karyo.png"
+
+rule make_hap_beds_wQual:
+    input: RFMIX_OUT
+    output: "beds/{ind}_A_Qual.bed"
+    shell:
+        f"source activate py27; python scripts/msp2bed.py --rfmix rfmix/{BASE} --ind {{wildcards.ind}} --out beds/{{wildcards.ind}} --Qual"

@@ -189,7 +189,6 @@ for line in bed_b:
 
 #write a legend
 p = []
-pdb.set_trace()
 for i in range(len(pop_order)):
     p.append(plt.Rectangle((0, 0), 1, 1, color=colors[i]))
 p.append(plt.Rectangle((0, 0), 1, 1, color='k'))

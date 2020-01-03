@@ -135,7 +135,7 @@ def main(individual, chrs):
         else:
             index, pop_labels = getMSPinfo(args.rfmix + ".chr" + str(chrom) + ".msp.tsv", individual)
             if not os.path.exists(os.path.dirname(args.out) + "/pop_order.txt"):
-                with open(os.path.dirname(args.out) + "pop_order.txt", 'w') as pop_order_file:
+                with open(os.path.dirname(args.out) + "/pop_order.txt", 'w') as pop_order_file:
                     pop_order_file.write(",".join(pop_labels))
             find_haplotype_bounds(index, 0, chrom, pop_labels, hap_a)
             find_haplotype_bounds(index, 1, chrom, pop_labels, hap_b)
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     current_ind = args.ind
 
     # set up chromosome variables
-    chrs = range(22, 23)
+    chrs = range(1, 23)
     if args.chrX:
         chrs.append('X')
 
