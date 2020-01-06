@@ -158,7 +158,7 @@ def getMSPinfo(msp_file, current_ind):
                 line = line.strip().split()
                 for ind in line[7:]:
                     if ind.endswith(".0"):
-                        ind = ind.strip(".0")
+                        ind = ind[:-2]
                         ind_list.append(ind)
             else:
                 break
