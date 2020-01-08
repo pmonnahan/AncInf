@@ -67,12 +67,6 @@ if not os.path.exists("plink"):
 if not os.path.exists("OandE"):
     os.mkdir("OandE")
 
-def makePedKey(query, pops, out = "ped_key.txt"):
-    with open(out) as outfile:
-        for pop in pops:
-            line = f"{pop}\t{QUERY}_{pop}.ped\n"
-            outfile.write(line)
-
 localrules: all, phase_map, pop_map
 
 RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
@@ -81,9 +75,10 @@ rule all:
     input:
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
         expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
-        expand(f"beds/{{ind}}_A.bed", ind=INDS),
-        expand(f"karyograms/{{ind}}_karyo.png", ind=INDS),
-        expand(f"plink/{QUERY}_{{pop}}.ped", pop=unique(RF_POPNAME)
+#         expand(f"beds/{{ind}}_A.bed", ind=INDS),
+#         expand(f"karyograms/{{ind}}_karyo.png", ind=INDS),
+        "plink/ped_key.txt",
+        f"{BASE}.admixMap.txt"
 
 rule clean:
     shell:
@@ -142,21 +137,19 @@ rule make_hap_beds_wQual:
         f"source activate py27; python scripts/msp2bed.py --rfmix rfmix/{BASE} --ind {{wildcards.ind}} --out beds/{{wildcards.ind}} --Qual"
 
 rule calcPCA:
-    input: QUERY
-    output: f"{QUERY}.eigenvec"
+    input: f"{QUERY}.bed"
+    output: f"plink/{BASE}.eigenvec"
     shell:
-        f"module load plink/1.90b6.10; plink --bfile {QUERY} --pca --out {QUERY}"
+        f"module load plink/1.90b6.10; plink --bfile {QUERY} --pca --out plink/{BASE}"
 
 rule make_anc_peds:
     input: RFMIX_OUT
-    output: f"plink/{QUERY}_{{pop}}.ped"
+    output: f"plink/ped_key.txt"
     shell:
-        f"source activate py27; module load plink/1.90b6.10; python scripts/rfmix2plink_tped.py --rfmix rfmix/{BASE} --fam {QUERY}.fam --out plink/{QUERY} --transpose"
-
-makePedKey(QUERY, unique(RF_POPNAME))
+        f"source activate py27; module load plink/1.90b6.10; python scripts/rfmix2plink_tped.py --rfmix rfmix/{BASE} --fam {QUERY}.fam --out {BASE} --transpose"
 
 rule admixMap:
-    input: "ped_key.txt", f"{QUERY}.eigenvec"
-    output: f"{QUERY}_amm.txt"
+    input: "plink/ped_key.txt", f"plink/{BASE}.eigenvec"
+    output: f"{BASE}.admixMap.txt"
     shell:
-        f"module load R/3.6.0; Rscript scripts/admixMap.R {{input}} {QUERY}.eigenvec {QUERY}.admixMap.txt"
+        f"module load R/3.6.0; Rscript scripts/admixMap.R {{input[0]}} {{input[1]}} {BASE}.admixMap.txt"

@@ -25,3 +25,7 @@ plot_karyograms:
   queue: small
   l: 'nodes=1:ppn=1,walltime=00:30:00,mem=3gb'
 
+admixMap:
+  queue: small
+  l: 'nodes=1:ppn=1,walltime=24:00:00,mem=16gb'
+

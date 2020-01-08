@@ -4,6 +4,7 @@ from math import ceil
 import re
 import pdb
 import subprocess
+import os
 
 def getMSPinfo(msp_file):
     # reading order of individuals
@@ -27,9 +28,10 @@ def getMSPinfo(msp_file):
 
 
 def main(args):
-    chrs = map(str, range(22,23))
+    chrs = map(str, range(1, 23))
     inds = open(args.fam)
     in_fam = []
+    ped_key = open(args.outdir + "ped_key.txt", 'w')
     for ind in inds:
         in_fam.append(ind.strip().split())
     
@@ -39,7 +41,7 @@ def main(args):
 
         if ii == 0:
             for pop in pop_labels:
-                with open(args.out + '_' + pop + '.tfam', 'w') as out_fam:
+                with open(args.outdir + args.out + '_' + pop + '.tfam', 'w') as out_fam:
                     # Sort information in in_fam based on order in ind_list
                     idxs = [ind_list.index(x[0]) for x in in_fam]
                     new_list = [x for _, x in sorted(zip(idxs, in_fam), key=lambda pair: pair[0])]
@@ -49,8 +51,10 @@ def main(args):
 
             out_tped = []
             for pop in pop_labels:
-                out_tped.append(open(args.out + '_' + pop + '.tped', 'w'))
-
+                out_tped.append(open(args.outdir + args.out + '_' + pop + '.tped', 'w'))
+                key_line = pop + "\t" + args.outdir + args.out + '_' + pop + '.ped\n'
+                ped_key.write(key_line)
+            ped_key.close()
 
         if args.snps:
             # TODO: need to elaborate rfmix2plink to use fb files instead of msp files (i.e. output SNPs instead of window midpoints)
@@ -81,8 +85,10 @@ def main(args):
     for pop in range(len(pop_labels)):
         out_tped[pop].close()
         if args.transpose:
-            cmd = "plink --tfile " + out_tped[pop] + " --recode --out " + out_tped[pop].replace('.tped', '')
-            pp = subprocess.call(cmd)
+            Name = args.outdir + args.out + '_' + pop_labels[pop]
+            cmd = "plink --tfile " + Name + " --recode --out " + Name
+            print(cmd)
+            pp = subprocess.call(cmd, shell=True)
 
 
     
@@ -91,6 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('--rfmix')
     parser.add_argument('--fam')
     parser.add_argument('--out')
+    parser.add_argument('--outdir', default = os.getcwd() + '/plink/')
     parser.add_argument('--snps', help='if this flag is set, the fb file (containing SNPs) will be used instead of '
                                        'the msp file, the "position" of which is taken as the midpoint of the '
                                        'window', default=False, action="store_true")
