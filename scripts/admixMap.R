@@ -20,7 +20,7 @@ outfile = args[3]
 
 #Load PCs from full snp dataset
 pca = read.table(pca_file, comment.char = "")
-pca = pca[1:7]
+pca = pca[,1:5]
 
 files = read.table(fileKey)
 gds_files = list()
@@ -50,7 +50,7 @@ for (i in 1:nrow(files)){
 
 # Attempting to ensure that the order is maintained such that correct PC loadings are assigned to correct individuals in GDS object
 pca = merge(samples, pca, by = "V1")
-
+pca = pca[1:5]
 # option 1: one GDS file per ancestry
 gdsList <- lapply(gds_files, GdsGenotypeReader)
 print(gds_files)
@@ -80,7 +80,7 @@ genoDataList <- lapply(gdsList, GenotypeData, scanAnnot=scanAnnot)
 
 # iterators
 # if we have 3 ancestries total, only 2 should be included in test
-genoIterators <- lapply(genoDataList[1:(length(genoDataList) - 1)], GenotypeBlockIterator)
+genoIterators <- lapply(genoDataList[1:(length(genoDataList) - 1)], GenotypeBlockIterator, snpBlock=10)
 
 # fit the null mixed model
 null.model <- fitNullModel(scanAnnot, outcome="pheno", covars=Covars, family="binomial")

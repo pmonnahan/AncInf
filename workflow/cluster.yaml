@@ -1,6 +1,6 @@
 #Modify lines indicated with MODIFY
 __default__:
-  queue: small
+  queue: mangi
   A: 'spectorl'
   M: 'pmonnaha@umn.edu' #MODIFY
   l: 'nodes=1:ppn=1,walltime=4:00:00,pmem=2500mb'
@@ -10,22 +10,22 @@ __default__:
   e: 'OandE/{rule}.{wildcards}.err'
 
 phase:
-  queue: small
+  queue: mangi
   l: 'nodes=1:ppn=6,walltime=12:00:00,mem=16gb'
 
 infer_ancestry:
-  queue: small
+  queue: mangi
   l: 'nodes=1:ppn=12,walltime=48:00:00,mem=32gb'
 
 make_hap_beds:
-  queue: small
+  queue: mangi
   l: 'nodes=1:ppn=1,walltime=00:30:00,mem=3gb'
 
 plot_karyograms:
-  queue: small
+  queue: mangi
   l: 'nodes=1:ppn=1,walltime=00:30:00,mem=3gb'
 
 admixMap:
-  queue: small
-  l: 'nodes=1:ppn=1,walltime=24:00:00,mem=16gb'
+  queue: mangi
+  l: 'nodes=1:ppn=1,walltime=06:00:00,mem=32gb'
 

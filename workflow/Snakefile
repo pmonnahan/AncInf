@@ -146,7 +146,7 @@ rule make_anc_peds:
     input: RFMIX_OUT
     output: f"plink/ped_key.txt"
     shell:
-        f"source activate py27; module load plink/1.90b6.10; python scripts/rfmix2plink_tped.py --rfmix rfmix/{BASE} --fam {QUERY}.fam --out {BASE} --transpose"
+        f"source activate py27; module load plink/1.90b6.10; python scripts/rfmix2plink_tped.py --rfmix rfmix/{BASE} --fam {QUERY}.fam --out {BASE} --transpose --snps"
 
 rule admixMap:
     input: "plink/ped_key.txt", f"plink/{BASE}.eigenvec"

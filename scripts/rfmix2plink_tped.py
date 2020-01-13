@@ -5,6 +5,12 @@ import re
 import pdb
 import subprocess
 import os
+from itertools import izip_longest
+
+def grouper(n, iterable, fillvalue=None, start_idx = 4):
+    "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
+    args = [iter(map(float, iterable[start_idx:]))] * n
+    return izip_longest(fillvalue=fillvalue, *args)
 
 def getMSPinfo(msp_file):
     # reading order of individuals
@@ -38,6 +44,7 @@ def main(args):
     #go through every chromosome and population, printing tped along the way. counting number of tracts of each ancestry: G = absent, A = present
     for ii, i in enumerate(chrs):
         ind_list, pop_labels = getMSPinfo(args.rfmix + ".chr" + str(i) + ".msp.tsv")
+        npop = len(pop_labels)
 
         if ii == 0:
             for pop in pop_labels:
@@ -57,8 +64,48 @@ def main(args):
             ped_key.close()
 
         if args.snps:
-            # TODO: need to elaborate rfmix2plink to use fb files instead of msp files (i.e. output SNPs instead of window midpoints)
-            pass
+            with open(args.rfmix + ".chr" + str(i) + ".fb.tsv") as fbk:
+                for k, line in enumerate(fbk):
+                    if line.startswith("#") or line.startswith("chrom"):
+                        continue
+                    myLine = line.strip().split()
+                    pos = myLine[1]
+                    gpos = myLine[2]
+                    fbk_max = []
+                    for group in grouper(npop, myLine):
+                        # pdb.set_trace()
+                        idx = group.index(max(group))
+                        if max(group) > args.fbk_threshold:
+                            fbk_max.append(idx)
+                        else:
+                            fbk_max.append(-9)
+                    for out in out_tped:
+                        snp_id = str(i) + "-" + str(k-1)
+                        out.write(' '.join(map(str, [i, snp_id, gpos, pos])) + ' ')
+                    for j in range(len(fbk_max) / 2):
+                        for pop in range(len(pop_labels)):
+                            current_anc = [fbk_max[2 * j], fbk_max[2 * j + 1]]
+                            if -9 in current_anc:
+                                out_tped[pop].write('0 0 ')
+                            else:
+                                pop_count = current_anc.count(pop)
+                                if pop_count == 0:
+                                    out_tped[pop].write('G G ')
+                                elif pop_count == 1:
+                                    out_tped[pop].write('G A ')
+                                else:
+                                    out_tped[pop].write('A A ')
+                    for pop in range(len(pop_labels)):
+                        out_tped[pop].write('\n')
+
+                        # for j in fbk_max:
+                        #     if j == -9:
+                        #         out_line += "0 "
+                        #     elif j == pop:
+                        #         out_line += "A "
+                        #     else:
+                        #         out_line += "G "
+
         else:
             with open(args.rfmix + ".chr" + str(i) + ".msp.tsv") as rfmix:
                 for k, line in enumerate(rfmix):
@@ -67,8 +114,10 @@ def main(args):
                     myLine = line.strip().split()  # start index is hardcoded at 6
                     start, end, gstart, gend, num_snps = map(float, myLine[1:6])
                     myLine = myLine[6:]
+
                     for out in out_tped:
-                        out.write(' '.join(map(str, [i, k-1, (gstart + gend) / 2, int(ceil((start + end) / 2))])) + ' ')
+                        snp_id = str(i) + "-" + str(k-1)
+                        out.write(' '.join(map(str, [i, snp_id, (gstart + gend) / 2, int(ceil((start + end) / 2))])) + ' ')
                     for j in range(len(myLine)/2):
                         current_anc = [myLine[2*j], myLine[2*j+1]]
                         for pop in range(len(pop_labels)):
@@ -102,5 +151,8 @@ if __name__ == '__main__':
                                        'the msp file, the "position" of which is taken as the midpoint of the '
                                        'window', default=False, action="store_true")
     parser.add_argument('--transpose', help='if this flag is set, the tped files will be transposed to ped format', default=False, action="store_true")
+    parser.add_argument('--fbk_threshold', type=float, default=0.9)
     args = parser.parse_args()
+
     main(args)
+
