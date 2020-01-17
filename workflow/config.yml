@@ -15,8 +15,8 @@ rfmix:
   reanalyze_reference: "true" #In the case a set of reference haplotypes may not be of "pure" ancestry and may themselves be somewhat admixed, the option --reanalyze-reference will cause the program to analyze the reference haplotypes as if they were query haplotypes, in addition to analyzing the query input.
 chroms: 'all'
 admixMapping_PCnum: '4'
-
-#Ignore all lines below
+bcftools:
+  threads: '6'
 phase:
   threads: "12"
   pbwt_depth: "8"
