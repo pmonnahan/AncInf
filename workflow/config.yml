@@ -1,6 +1,6 @@
 #Modify all lines indicated with MODIFY
 query:
-  ALL: "/home/spectorl/pmonnaha/data/QC_allRaces/all_aric_merged" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
+  ALL: "/home/spectorl/pmonnaha/data/QC_allRaces/all_aric_merged_AA" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
 reference:
   hg19:
     vcf: "/home/spectorl/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
@@ -11,7 +11,7 @@ rfmix:
   ref_pops: "YRI,GWD,ESN,MSL,LWK,CEU,FIN,IBS,TSI" #MODIFY: Reference Populations to include.  Labels for each reference population is specified in pop_names
   pop_names: "AFR,AFR,AFR,AFR,AFR,EUR,EUR,EUR,EUR" #MODIFY: Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
   threads: "12" # Number of processors to use for parallel computation
-  generations: "12" #Generations since admixture began
+  generations: "8" #Generations since admixture began
   reanalyze_reference: "true" #In the case a set of reference haplotypes may not be of "pure" ancestry and may themselves be somewhat admixed, the option --reanalyze-reference will cause the program to analyze the reference haplotypes as if they were query haplotypes, in addition to analyzing the query input.
 chroms: 'all'
 admixMapping_PCnum: '4'

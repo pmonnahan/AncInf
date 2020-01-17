@@ -75,6 +75,7 @@ RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
 rule all:
     input:
+        f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf"
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
         expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
 #         expand(f"beds/{{ind}}_A.bed", ind=INDS),
@@ -85,6 +86,11 @@ rule all:
 rule clean:
     shell:
         "rm vcfs/*; rm bcfs/*; rm rfmix/*; rm beds/*; rm karyograms/*"
+
+rule prep_RefVCF:
+    input: REFFILE
+    output: f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf"
+    shell: f"module load bcftools/1.9; bcftools view {REFFILE} -Ou -o {{output}}; bcftools index {{output}}"
 
 rule parse_plink:
     input: f"{QUERY}.bed"
@@ -104,10 +110,11 @@ rule phase_map:
 rule phase:
     input:
         f"vcfs/{BASE}.chr{{chrom}}.vcf.gz",
-        "accessory/Shapeit4_genetic_map{chrom}"
+        "accessory/Shapeit4_genetic_map{chrom}",
+        f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf"
     output: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf"
     shell:
-        f"module load bcftools/1.9; shapeit4 -I {{input}} -M {PHASE_MAP}{{wildcards.chrom}} -O bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {PHASE_THREADS} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf"
+        f"module load bcftools/1.9; shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {PHASE_THREADS} --reference {{input[3]}}--log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf"
 
 rule pop_map:
     input: POPFILE
