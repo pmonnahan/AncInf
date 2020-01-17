@@ -27,6 +27,8 @@ RF_REANALYZE = config['rfmix']['reanalyze_reference']
 RF_REFPOPS = config['rfmix']['ref_pops']
 RF_POPNAME = config['rfmix']['pop_names']
 CHROMS = config['chroms']
+PCNUM = config['admixMapping_PCnum']
+
 
 # If set to true, the reference populations will be reanalyzed.  Useful for when reference populations are themselves admixed.
 if RF_REANALYZE == 'true':
@@ -105,7 +107,7 @@ rule phase:
         "accessory/Shapeit4_genetic_map{chrom}"
     output: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf"
     shell:
-        f"module load bcftools/1.9; shapeit4 -I {{input}} -M {PHASE_MAP}{{wildcards.chrom}} -O bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --region {{wildcards.chrom}} -T {PHASE_THREADS} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf"
+        f"module load bcftools/1.9; shapeit4 -I {{input}} -M {PHASE_MAP}{{wildcards.chrom}} -O bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {PHASE_THREADS} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf"
 
 rule pop_map:
     input: POPFILE
@@ -152,4 +154,4 @@ rule admixMap:
     input: "plink/ped_key.txt", f"plink/{BASE}.eigenvec"
     output: f"{BASE}.admixMap.txt"
     shell:
-        f"module load R/3.6.0; Rscript scripts/admixMap.R {{input[0]}} {{input[1]}} {BASE}.admixMap.txt"
+        f"module load R/3.6.0; Rscript scripts/admixMap.R {{input[0]}} {{input[1]}} {BASE}.admixMap.txt {PCNUM}"

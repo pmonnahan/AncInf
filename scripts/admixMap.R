@@ -17,10 +17,11 @@ if (length(args)==0) {
 fileKey = args[1]
 pca_file = args[2]
 outfile = args[3]
+pc_num = as.numeric(args[4])
 
 #Load PCs from full snp dataset
 pca = read.table(pca_file, comment.char = "")
-pca = pca[,1:5]
+pca = pca[,1:(pc_num+2)] #plus 2 accounts for plink name cols
 
 files = read.table(fileKey)
 gds_files = list()
@@ -50,7 +51,7 @@ for (i in 1:nrow(files)){
 
 # Attempting to ensure that the order is maintained such that correct PC loadings are assigned to correct individuals in GDS object
 pca = merge(samples, pca, by = "V1")
-pca = pca[1:5]
+
 # option 1: one GDS file per ancestry
 gdsList <- lapply(gds_files, GdsGenotypeReader)
 print(gds_files)
@@ -59,11 +60,9 @@ print(gds_files)
 scanAnnot <- ScanAnnotationDataFrame(data.frame(
   scanID=getScanID(gdsList[[1]]), stringsAsFactors=FALSE))
 
-# generate a phenotype
-set.seed(4)
+# label phenotypes...is this working correctly?  seems so
 nsamp <- nrow(scanAnnot)
 scanAnnot$pheno <- phenotypes
-set.seed(5)
 scanAnnot$sex <- sex
 
 Covars = c("sex")
@@ -80,7 +79,7 @@ genoDataList <- lapply(gdsList, GenotypeData, scanAnnot=scanAnnot)
 
 # iterators
 # if we have 3 ancestries total, only 2 should be included in test
-genoIterators <- lapply(genoDataList[1:(length(genoDataList) - 1)], GenotypeBlockIterator, snpBlock=10)
+genoIterators <- lapply(genoDataList[1:(length(genoDataList) - 1)], GenotypeBlockIterator, snpBlock=1000)
 
 # fit the null mixed model
 null.model <- fitNullModel(scanAnnot, outcome="pheno", covars=Covars, family="binomial")
