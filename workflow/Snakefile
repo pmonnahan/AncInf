@@ -108,8 +108,8 @@ rule pop_map:
 rule prep_RefVCF:
     input: REFFILE, "accessory/Population_Map_File.txt"
     output: f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf"
-    threads: config['bcftools']['threads']
-    shell: f"module load bcftools/1.9; awk '{{print $1}}' {{input[1]}} bcftools view -S - {{input[0]}} -Ob -o {{output}} --threads {{threads}}; bcftools index {{output}} --threads {{threads}}"
+    threads: int(config['bcftools']['threads'])
+    shell: "module load bcftools/1.9; awk \'{{print $1}}\' {input[1]} | bcftools view -S - {input[0]} -Ob -o {output} --force-samples --threads {threads}; bcftools index {output} --threads {threads}"
 
 rule phase:
     input:
@@ -117,16 +117,16 @@ rule phase:
         "accessory/Shapeit4_genetic_map{chrom}",
         f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf"
     output: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf"
-    threads: config['phase']['threads']
+    threads: int(config['phase']['threads'])
     shell:
-        f"module load bcftools/1.9; shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {{threads}} --reference {{input[3]}}--log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf --threads {{threads}}"
+        f"module load bcftools/1.9; shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {{threads}} --reference {{input[2]}} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && bcftools index {{output}} --threads {{threads}}"
 
 rule infer_ancestry:
     input: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", "accessory/Population_Map_File.txt"
     output: f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q"
-    threads: config['rfmix']['threads']
+    threads: int(config['rfmix']['threads'])
     shell:
-        f"module load bcftools/1.9; rfmix -f {{input[0]}} -r {REFFILE} -m {{input[1]}} -g {MAPFILE} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={{threads}} -G {RF_GEN} {RF_REANALYZE}"
+        f"module load bcftools/1.9; rfmix -f {{input[0]}} -r {REFFILE} -m {{input[1]}} -g {MAPFILE} -s {config['rfmix']['window_size']} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={{threads}} -G {RF_GEN} {RF_REANALYZE}"
 
 rule make_hap_beds:
     input: RFMIX_OUT
