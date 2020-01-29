@@ -1,12 +1,12 @@
 #Modify all lines indicated with MODIFY
 query:
-  ALL: "/home/spectorl/pmonnaha/data/QC_allRaces/all_aric_merged_AA" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
+  ALL: "/home/pmonnaha/shared/data/QC_allRaces/all_aric_merged_AA" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
 reference:
   hg19:
-    vcf: "/home/spectorl/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
-    superpops: "/home/spectorl/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
+    vcf: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
+    superpops: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
     subpops: "accessory/1000G_PopLabels.txt" 
-    genmap: "/home/spectorl/pmonnaha/accessory/genetic_map_hg19.txt"
+    genmap: "/home/pmonnaha/pmonnaha/accessory/genetic_map_hg19.txt"
 rfmix:
   ref_pops: "YRI,GWD,ESN,MSL,LWK,CEU,FIN,IBS,TSI" #MODIFY: Reference Populations to include.  Labels for each reference population is specified in pop_names
   pop_names: "AFR,AFR,AFR,AFR,AFR,EUR,EUR,EUR,EUR" #MODIFY: Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
