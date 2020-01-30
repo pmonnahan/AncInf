@@ -3,6 +3,7 @@ import glob
 import os
 import subprocess
 import pdb
+import shutil
 
 # Get the date
 from datetime import datetime
@@ -15,7 +16,7 @@ configfile: "workflow/config.yml"
 # Parse config.yml file
 SCRATCH = config['dir']['scratch']
 OUT = config['dir']['out']
-QUERY = config['query']['ALL']
+QUERY = config['query']
 REFFILE = config['reference']['hg19']['vcf']
 POPFILE = config['reference']['hg19']['subpops']
 MAPFILE = config['reference']['hg19']['genmap']
@@ -27,6 +28,8 @@ RF_POPNAME = config['rfmix']['pop_names']
 CHROMS = config['chroms']
 PCNUM = config['admixMapping_PCnum']
 
+BASE = config['outname']  # Base prefix used for naming files is set as basename of
+INPUT = f"input/{BASE}"
 
 # If set to true, the reference populations will be reanalyzed.  Useful for when reference populations are themselves admixed.
 if RF_REANALYZE == 'true':
@@ -44,28 +47,13 @@ with open(QUERY + ".fam", 'r') as pop_file:
         ind = line.strip().split()[0]
         INDS.append(ind)
 
-BASE = os.path.basename(QUERY)
-
 if CHROMS == 'all':
     CHROMS = [str(x) for x in range(1, 23)]
 
 # Make subdirectories
-if not os.path.exists("vcfs"):
-    os.mkdir("vcfs")
-if not os.path.exists("bcfs"):
-    os.mkdir("bcfs")
-if not os.path.exists("rfmix"):
-    os.mkdir("rfmix")
-if not os.path.exists("accessory"):
-    os.mkdir("accessory")
-if not os.path.exists("beds"):
-    os.mkdir("beds")
-if not os.path.exists("karyograms"):
-    os.mkdir("karyograms")
-if not os.path.exists("plink"):
-    os.mkdir("plink")
-if not os.path.exists("OandE"):
-    os.mkdir("OandE")
+dirs = ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE"]
+for directory in dirs:
+    if not os.path.exists(directory): os.mkdir(directory)
 
 localrules: all, phase_map, pop_map
 
@@ -73,6 +61,7 @@ RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
 rule all:
     input:
+        f"{INPUT}.bed"
         f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf",
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
         expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
@@ -85,10 +74,15 @@ rule clean:
     shell:
         "rm vcfs/*; rm bcfs/*; rm rfmix/*; rm beds/*; rm karyograms/*"
 
+rule QCcombine_query:
+    input: ",".join(QUERY.values())
+    output: f"{INPUT}.bed"
+    shell: f"module load plink/1.90b6.10; python scripts/QCcombine.py -i {{input}} -d input/ -o {BASE} -p plink -tvm1 {config['QC']['vm1']} -tgm {config['QC']['gm']} -tvm2 {config['QC']['vm2']} -hwe {config['QC']['hwe']} -maf {config['QC']['maf']} -mbs {config['QC']['mbs']}"
+
 rule parse_plink:
-    input: f"{QUERY}.bed"
+    input: f"{INPUT}.bed"
     output: f"vcfs/{BASE}.chr{{chrom}}.vcf"
-    shell: f"module load plink/1.90b6.10; plink --bfile {QUERY} --chr {{wildcards.chrom}} --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
+    shell: f"module load plink/1.90b6.10; plink --bfile {INPUT} --chr {{wildcards.chrom}} --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
 
 rule compress_and_index:
     input: f"vcfs/{BASE}.chr{{chrom}}.vcf"
@@ -147,16 +141,16 @@ rule make_hap_beds_wQual:
         f"source activate py27; python scripts/msp2bed.py --rfmix rfmix/{BASE} --ind {{wildcards.ind}} --out beds/{{wildcards.ind}} --Qual"
 
 rule calcPCA:
-    input: f"{QUERY}.bed"
+    input: f"{INPUT}.bed"
     output: f"plink/{BASE}.eigenvec"
     shell:
-        f"module load plink/1.90b6.10; plink --bfile {QUERY} --pca --out plink/{BASE}"
+        f"module load plink/1.90b6.10; plink --bfile {INPUT} --pca --out plink/{BASE}"
 
 rule make_anc_peds:
     input: RFMIX_OUT
     output: f"plink/ped_key.txt"
     shell:
-        f"source activate py27; module load plink/1.90b6.10; python scripts/rfmix2plink_tped.py --rfmix rfmix/{BASE} --fam {QUERY}.fam --out {BASE} --transpose --snps"
+        f"source activate py27; module load plink/1.90b6.10; python scripts/rfmix2plink_tped.py --rfmix rfmix/{BASE} --fam {INPUT}.fam --out {BASE} --transpose --snps"
 
 rule admixMap:
     input: "plink/ped_key.txt", f"plink/{BASE}.eigenvec"

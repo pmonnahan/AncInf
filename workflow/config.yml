@@ -1,6 +1,18 @@
 #Modify all lines indicated with MODIFY
+outname: "AncInf"
 query:
-  ALL: "/home/pmonnaha/shared/data/QC_allRaces/all_aric_merged_AA" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
+  cog1: "/home/pmonnaha/shared/data/QC_allRaces/cog9904_9905" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
+  cog2: "/home/pmonnaha/shared/data/QC_allRaces/cog9906"
+  stjude: "/home/pmonnaha/shared/data/QC_allRaces/stjude"
+  aall0232: "/home/pmonnaha/shared/data/QC_allRaces/aall0232"
+  aric: "/home/pmonnaha/shared/data/QC_allRaces/aric"
+QC:
+  vm1: "0.2"
+  gm: "0.1"
+  vm2: "0.02"  # Ultimate call rate for variants after removing low-callrate samples
+  maf: "0.01"  # mimimum Minor allele frequency
+  hwe: "0.00001"  # p-value threshold for whether site follows hardy-weinberg
+  mbs: "0.00001"  # p-value treshold for test of whether missingness varies by sex
 reference:
   hg19:
     vcf: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
