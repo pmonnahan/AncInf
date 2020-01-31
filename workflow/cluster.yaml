@@ -9,6 +9,10 @@ __default__:
   o: 'OandE/{rule}.{wildcards}.out'
   e: 'OandE/{rule}.{wildcards}.err'
 
+QCcombine_query:
+  queue: mangi
+  l: 'walltime=04:00:00,pmem=2500mb'
+
 prep_RefVCF:
   queue: mangi
   l: 'walltime=24:00:00,mem=32gb'

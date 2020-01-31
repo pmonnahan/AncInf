@@ -77,7 +77,8 @@ rule clean:
 rule QCcombine_query:
     input: ",".join(QUERY.values())
     output: f"{INPUT}.bed"
-    shell: f"module load plink/1.90b6.10; python scripts/QCcombine.py -i {{input}} -d input/ -o {BASE} -p plink -tvm1 {config['QC']['vm1']} -tgm {config['QC']['gm']} -tvm2 {config['QC']['vm2']} -hwe {config['QC']['hwe']} -maf {config['QC']['maf']} -mbs {config['QC']['mbs']}"
+    threads: len(QUERY.values())
+    shell: f"module load plink/1.90b6.10; python scripts/QCcombine.py -i {{input}} -d input/ -o {BASE} -t {{threads}} -p plink -tvm1 {config['QC']['vm1']} -tgm {config['QC']['gm']} -tvm2 {config['QC']['vm2']} -hwe {config['QC']['hwe']} -maf {config['QC']['maf']} -mbs {config['QC']['mbs']}"
 
 rule parse_plink:
     input: f"{INPUT}.bed"
