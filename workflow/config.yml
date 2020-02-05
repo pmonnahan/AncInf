@@ -8,6 +8,7 @@ query:
   aall0232: "/home/pmonnaha/shared/data/admiral/aall0232/plink"
   aric: "/home/pmonnaha/shared/data/admiral/mergeALL_AA/QC_allRaces/aric"
 QC:
+  FixRef: "True"
   vm1: "0.2"
   gm: "0.1"
   vm2: "0.02"  # Ultimate call rate for variants after removing low-callrate samples
