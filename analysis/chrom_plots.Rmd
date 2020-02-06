@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(magrittr)
 library(tidyverse)
+library(dplyr)
 library(wrapr)
 library(stringr)
 library(GWASTools)
