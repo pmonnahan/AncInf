@@ -1,0 +1,173 @@
+# Load modules
+import glob
+import os
+import subprocess
+import pdb
+import shutil
+
+# Get the date
+from datetime import datetime
+i = datetime.now()
+TIME = i.strftime('%Y-%m-%d')
+
+# Specify config file
+configfile: "workflow/config.yml"
+
+if config['use_singularity'] == 'true' and config['singularity_image'] != "none":
+    CMD_PREFIX = f"singularity exec {config['singularity_image']} "
+else:
+    CMD_PREFIX = ''
+
+# Parse config.yml file
+OUT = config['dir']['out']
+QUERY = config['query']
+REFFILE = config['reference']['hg19']['vcf']
+POPFILE = config['reference']['hg19']['subpops']
+MAPFILE = config['reference']['hg19']['genmap']
+CODE = config['dir']['code']
+REFPOPS = config['phase']['ref_pops']
+CHROMS = config['chromosomes']
+BCFTOOLS = config['bcftools']['executable']
+
+BASE = config['outname']  # Base prefix used for naming files is set as basename of
+INPUT = f"input/{BASE}"
+
+# Set default internal variables
+PHASE_MAP = "accessory/Shapeit4_genetic_map"
+NEW_POPFILE = "accessory/Population_Map_File.txt"
+
+if CHROMS == 'all':
+    CHROMS = [str(x) for x in range(1, 23)]
+else:
+    CHROMS = CHROMS.split(",")
+
+# Make subdirectories
+dirs = ["dataprep", "pre-phase", "phased", "imputed", "OandE"]
+for datset in QUERY.keys():
+    if not os.path.exists(datset): os.mkdir(datset)
+    for directory in dirs:
+        if not os.path.exists(f"{datset}/{directory}"): os.mkdir(f"{datset}/{directory}")
+if not os.path.exists("reference"): os.mkdir("reference")
+
+localrules: all, phase_map, pop_map
+print(QUERY.keys())
+rule all:
+    input:
+        expand("dataprep/{rawdata}/{rawdata}_alleles_IDs.bed", rawdata=QUERY.keys()),
+        expand("dataprep/{rawdata}/{rawdata}-FixRef.bed", rawdata=QUERY.keys()),
+        expand("dataprep/{rawdata}/{rawdata}-QC.bed", rawdata=QUERY.keys()),
+        expand("Reference/1000GP_Phase3_chr{chrom}.hap.gz", chrom=CHROMS),
+        expand("Reference/ALL.chr{chrom}.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.bcf", chrom=CHROMS),
+        expand("phased/{rawdata}/{rawdata}.chr{chrom}.phz.bcf", rawdata=QUERY.keys(), chrom=CHROMS),
+
+rule clean:
+    shell:
+        "rm dataprep/*; rm pre-phase/*; rm phased/*; rm imputed/*; rm OandE/*"
+
+rule update_alleles_IDs:
+    input: QUERY
+    output: "dataprep/{rawdata}/{rawdata}_alleles_IDs.bed"
+    params:
+        prefix = "dataprep/{rawdata}/{rawdata}",
+        exec = f"{CMD_PREFIX}{config['plink']}",
+        alleles = config['updates']['allele_key']
+        ids = config['updates']['ID_key']
+    run:
+        if config['updates']['ID_key'] != "none":
+            if config['updates']['allele_key'] != "none":
+                shell(f"{{params.exec}} --bfile {QUERY[wildcards.rawdata]} --update-alleles {{params.alleles}} --make-bed --out {{params.prefix}}_alleles; {{params.exec}} --bfile {{params.prefix}}_alleles --update-name {{params.ids}} --make-bed --out {{params.prefix}}_alleles_IDs")
+            else:
+                shell(f"{{params.exec}} --bfile {QUERY[wildcards.rawdata]} --update-name {{params.ids}} --make-bed --out {{params.prefix}}_alleles_IDs")
+        else:
+            shell(f"{{params.exec}} --bfile {QUERY[wildcards.rawdata]} --make-bed --out {{params.prefix}}_alleles_IDs")
+
+rule FixRef:
+    input: "dataprep/{rawdata}/{rawdata}_alleles_IDs.bed"
+    output: "dataprep/{rawdata}/{rawdata}-FixRef.bed"
+    params:
+        prefix = "dataprep/{rawdata}/{rawdata}"
+    run:
+        if config['updates']['FixRef'] == "true":
+            shell(f"sh scripts/FixRef.sh {{params.prefix}}_alleles_IDs dataprep/{{wildcards.rawdata}}/ {{wildcards.rawdata}}-FixRef {config['updates']['chrom_key']} t t t t")
+        else:
+            shell(f"{CMD_PREFIX}{config['plink']} --bfile {{params.prefix}}_alleles_IDs --make-bed --out {{params.prefix}}-FixRef")
+
+rule QCcombine_query:
+    input: "dataprep/{wildcards.rawdata}/{wildcards.rawdata}-FixRef.bed"
+    output: "dataprep/{rawdata}/{rawdata}-QC.bed"
+    shell: f"{CMD_PREFIX}{config['plink']}; python scripts/QCcombine.py -i {{input}} -d dataprep/{{wildcards.rawdata}} -o {{wildcards.rawdata}}-QC -p plink -tvm1 {config['QC']['vm1']} -tgm {config['QC']['gm']} -tvm2 {config['QC']['vm2']} -hwe {config['QC']['hwe']} -maf {config['QC']['maf']} -mbs {config['QC']['mbs']}"
+
+rule parse_plink:
+    input: "dataprep/{wildcards.rawdata}/{wildcards.rawdata}-QC.bed"
+    output: f"pre-phase/{{rawdata}}/{{rawdata}}.chr{{chrom}}.vcf"
+    shell: f{CMD_PREFIX}"{config['plink']} --bfile dataprep/{{wildcards.rawdata}}/{{wildcards.rawdata}}-QC --chr {{wildcards.chrom}} --out pre-phase/{{wildcards.rawdata}}/{{wildcards.rawdata}}.chr{{wildcards.chrom}} --recode vcf-iid"
+
+rule compress_and_index:
+    input: f"pre-phase/{{wildcards.rawdata}}/{{wildcards.rawdata}}.chr{{wildcards.chrom}}.vcf"
+    output: f"pre-phase/{{rawdata}}/{{rawdata}}.chr{{chrom}}.vcf.gz"
+    shell: f"{CMD_PREFIX}{config['bgzip']} {{input}}; {CMD_PREFIX}tabix -p vcf {{output}}"
+
+rule phase_map:
+    input: MAPFILE
+    output: "accessory/Shapeit4_genetic_map{chrom}"
+    shell: "python3.6 scripts/phase_map.py -i {input}"
+
+rule pop_map:
+    input: POPFILE
+    output: "accessory/Population_Map_File.txt"
+    shell: f"python3.6 scripts/pop_map.py -i {{input}} -p {REFPOPS} -n -9 -o {NEW_POPFILE}"
+
+rule prep_RefVCF:
+    input: REFFILE, "accessory/Population_Map_File.txt"
+    output:
+        f"Reference/1000GP_Phase3_chr{{chrom}}.hap.gz",
+        f"Reference/ALL.chr{{chrom}}.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.bcf"
+#     params:
+#         prefix = f"Reference/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}_chr{{chrom}}"
+#     threads: int(config['bcftools']['threads'])
+    run:
+        shell(f"sh scripts/DownloadRefs.sh {os.getcwd()}")
+#         if config['download_refs'] == 'false':
+#             print("Warning: Make sure that reference for imputation has strand-matched with query data to be imputed")
+#             shell("{CMD_PREFIX} awk \'{{print $1}}\' {input[1]} | {CMD_PREFIX}{BCFTOOLS} view -r {wildcards.chrom} -S - {input[0]} -Ob -o {output} --force-samples --threads {threads}; {CMD_PREFIX}{BCFTOOLS} index {output} --threads {threads}; {CMD_PREFIX}{BCFTOOLS} --haplegendsample {params.prefix} {output}")
+#         else:
+
+rule phase:
+    input:
+        f"pre-phase/{{wildcards.rawdata}}/{{wildcards.rawdata}}.chr{{wildcards.chrom}}.vcf.gz",
+        "accessory/Shapeit4_genetic_map{wildcards.chrom}",
+        f"Reference/ALL.chr{{chrom}}.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.bcf"
+    output: f"phased/{{rawdata}}/{{rawdata}}.chr{{chrom}}.phz.bcf"
+    threads: int(config['phase']['threads'])
+    shell:
+        f"{CMD_PREFIX}shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {{threads}} --reference {{input[2]}} --log {{output}}.log && {CMD_PREFIX}{BCFTOOLS} index {{output}} --threads {{threads}}"
+
+# TODO: rule impute
+rule impute:
+    input: f"phased/{{wildcards.rawdata}}/{{wildcards.rawdata}}.chr{{wildcards.chrom}}.phz.bcf",
+        f"Reference/1000GP_Phase3_chr{{chrom}}.hap.gz""
+    params:
+        refbase = f"Reference/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}_chr{{wildcards.chrom}}"
+        outbase = f"imputed/{{wildcards.rawdata}}/{{wildcards.rawdata}}.chr{{wildcards.chrom}}"
+    output: f"imputed/{{wildcards.rawdata}}/{{wildcards.rawdata}}.chr{{wildcards.chrom}}.hap"
+    shell:
+        f"impute2 -m Reference/genetic_map_chr{{wildcards.chrom}}_combined_b37.txt -h {{input[1]}} -l {{params.refbase}}.legend -o {{params.outbase}} -g ???"
+
+# see this for conditional rules
+# def bowtie2_inputs(wildcards):
+#     if (seq_type == "pe"):
+#         return expand("{reads}_{strand}.fastq", strand=["R1", "R2"], reads=wildcards.reads)
+#     elif (seq_type == "se"):
+#         return expand("{reads}.fastq", reads=wildcards.reads)
+#
+# rule bowtie2:
+#     input:
+#         bowtie2_inputs,
+#         index=bowtie2_index
+#     output:
+#         sam="{reads}_bowtie2.sam"
+#     run:
+#         if seq_type == "pe":
+#             shell("bowtie2 -x {input.index} -1 {input.forward} -2 {input.reverse} -S {output.sam}")
+#         elif seq_type == "se":
+#             shell("bowtie2 -x {input.index} -U {input.reads} -S {output.sam}")
