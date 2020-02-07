@@ -8,6 +8,14 @@ reference:
     superpops: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
     subpops: "accessory/1000G_PopLabels.txt" 
     genmap: "/home/pmonnaha/pmonnaha/accessory/genetic_map_hg19.txt"
+perform_QC: 'true'
+QC:
+  vm1: "0.2"
+  gm: "0.1"
+  vm2: "0.02"  # Ultimate call rate for variants after removing low-callrate samples
+  maf: "0.01"  # mimimum Minor allele frequency
+  hwe: "0.00001"  # p-value threshold for whether site follows hardy-weinberg
+  mbs: "0.00001"  # p-value treshold for test of whether missingness varies by sex
 rfmix:
   ref_pops: "YRI,GWD,ESN,MSL,LWK,CEU,FIN,IBS,TSI" #MODIFY: Reference Populations to include.  Labels for each reference population is specified in pop_names
   pop_names: "AFR,AFR,AFR,AFR,AFR,EUR,EUR,EUR,EUR" #MODIFY: Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops

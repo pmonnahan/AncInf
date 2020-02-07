@@ -51,7 +51,7 @@ if CHROMS == 'all':
     CHROMS = [str(x) for x in range(1, 23)]
 
 # Make subdirectories
-dirs = ["vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE"]
+dirs = ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE"]
 for directory in dirs:
     if not os.path.exists(directory): os.mkdir(directory)
 
@@ -61,6 +61,7 @@ RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
 rule all:
     input:
+        f"{INPUT}.bed",
         f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf",
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
         expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
@@ -73,10 +74,22 @@ rule clean:
     shell:
         "rm vcfs/*; rm bcfs/*; rm rfmix/*; rm beds/*; rm karyograms/*"
 
+rule QCcombine_query:
+    input: QUERY
+    output: f"{INPUT}.bed"
+    params:
+        tvm1 = config['QC']['vm1'], tgm = config['QC']['gm'], tvm2 = config['QC']['vm2'],
+        hwe = config['QC']['hwe'], maf = config['QC']['maf'], mbs = config['QC']['mbs']
+    run:
+        if config['perform_QC'] == 'true':
+            f"module load plink/1.90b6.10; python scripts/QCcombine.py -i {{input}} -d input/ -o {BASE} -t {{threads}} -p plink -tvm1 {{params.tvm1}} -tgm {{params.tgm}} -tvm2 {{params.tvm2}} -hwe {{params.hwe}} -mbs {{params.mbs}} -maf {{params.maf}}"
+        else:
+            f"module load plink/1.90b6.10; plink --bfile {QUERY} --make-bed --out {INPUT}"
+
 rule parse_plink:
-    input: f"{QUERY}.bed"
+    input: f"{INPUT}.bed"
     output: f"vcfs/{BASE}.chr{{chrom}}.vcf"
-    shell: f"module load plink/1.90b6.10; plink --bfile {QUERY} --chr {{wildcards.chrom}} --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
+    shell: f"module load plink/1.90b6.10; plink --bfile {INPUT} --chr {{wildcards.chrom}} --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
 
 rule compress_and_index:
     input: f"vcfs/{BASE}.chr{{chrom}}.vcf"
