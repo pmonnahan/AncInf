@@ -15,7 +15,7 @@ QCcombine_query:
 
 prep_RefVCF:
   queue: mangi
-  l: 'walltime=24:00:00,mem=32gb'
+  l: 'walltime=48:00:00,mem=32gb'
 
 phase:
   queue: mangi

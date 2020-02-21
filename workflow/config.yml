@@ -3,19 +3,19 @@ outname: "AncInf"
 samples: "all"  # This can be set to path of file containing individuals to be kept from merged query file. One sample per line.
 query: "/home/pmonnaha/shared/data/QC_allRaces/all_aric_merged_AA" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
 reference:
-  hg19:
-    vcf: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
-    superpops: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
-    subpops: "accessory/1000G_PopLabels.txt" 
-    genmap: "/home/pmonnaha/pmonnaha/accessory/genetic_map_hg19.txt"
-perform_QC: 'true'
+  vcf: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
+  superpops: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
+  subpops: "accessory/1000G_PopLabels.txt"
+  genmap: "/home/pmonnaha/pmonnaha/accessory/genetic_map_hg19.txt"
+  phased_bcf: 'none'
+perform_QC: 'false'
 QC:
   vm1: "0.2"
   gm: "0.1"
-  vm2: "0.02"  # Ultimate call rate for variants after removing low-callrate samples
+  vm2: "0.05"  # Ultimate call rate for variants after removing low-callrate samples
   maf: "0.01"  # mimimum Minor allele frequency
-  hwe: "0.00001"  # p-value threshold for whether site follows hardy-weinberg
-  mbs: "0.00001"  # p-value treshold for test of whether missingness varies by sex
+  hwe: "0.0000001"  # p-value threshold for whether site follows hardy-weinberg
+  mbs: "0.0000001"  # p-value treshold for test of whether missingness varies by sex
 rfmix:
   ref_pops: "YRI,GWD,ESN,MSL,LWK,CEU,FIN,IBS,TSI" #MODIFY: Reference Populations to include.  Labels for each reference population is specified in pop_names
   pop_names: "AFR,AFR,AFR,AFR,AFR,EUR,EUR,EUR,EUR" #MODIFY: Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
@@ -30,8 +30,18 @@ bcftools:
 phase:
   threads: "12"
   pbwt_depth: "8"
+singularity:
+  use_singularity: 'false'
+  image: '/home/pmonnaha/pmonnaha/AncestryInference.sif'
+  code: '/scripts/'
+  vcf: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
+  superpops: "/data/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
+  subpops: "/data/1000G_PopLabels.txt"
+  genmap: "/data/genetic_map_hg19.txt"
+  phased_bcf: '/data/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.bcf'
+cmd_prefix: "module load plink/1.90b6.10; module load htslib/1.6; module load bcftools/1.9;"
 dir:
   main: "/home/spectorl/pmonnaha/ancestry/" #CURRENTLY UNUSED
   scratch: "/scratch.global/pmonnaha/"
   out: "/scratch.global/pmonnaha/snakemake_testing/"
-  code: "/home/spectorl/pmonnaha/code/"
+  code: './scripts/'

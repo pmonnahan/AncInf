@@ -67,10 +67,13 @@ def wrapQC(input, output, tvm1, tgm, tvm2, maf, hwe, mbs, plink):
     out2, err2 = calc_stats(f"{output}.geno_flt{tgm}", plink)
     DF_list = []
     for stat in ['frq', 'hwe', 'lmiss', 'missing']:
-        tdf = pd.read_csv(f"{output}.geno_flt{tgm}.{stat}", sep = r"\s+")
-        if stat=="hwe":
-            tdf = tdf[tdf['TEST']=="UNAFF"]
-        DF_list.append(tdf)
+        try:
+            tdf = pd.read_csv(f"{output}.geno_flt{tgm}.{stat}", sep=r"\s+")
+            if stat == "hwe":
+                tdf = tdf[tdf['TEST'] == "UNAFF"]
+            DF_list.append(tdf)
+        except FileNotFoundError:
+            print(f"Did not find file: {output}.geno_flt{tgm}.{stat}")
     df = reduce(lambda df1, df2: pd.merge(df1, df2, on='SNP'), DF_list)
     # ARIC is failing HWE massively.c
     df2 = df.query(f"MAF < {maf} | P_x < {hwe} | F_MISS > {tvm2} | P_y < {mbs}")
@@ -90,7 +93,7 @@ def wrapQC(input, output, tvm1, tgm, tvm2, maf, hwe, mbs, plink):
     pp1 = subprocess.Popen(cmd, shell=True)  # Run cmd1
     out1, err1 = pp1.communicate()  # Wait for it to finish
 
-    return(output + ".QC")
+    return(output)
 
 
 # Set up command line execution
