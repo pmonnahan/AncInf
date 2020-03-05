@@ -1,0 +1,36 @@
+#Modify lines indicated with MODIFY
+__default__:
+  A: 'spectorl' #MODIFY.  This should be name of your account with your HPC system
+  job-name: "{rule}"
+  time: "4:00:00"
+  mem-per-cpu: "5G"
+  ntasks: "1"
+  nodes: "1"
+  mail-user: "andrew.dewan@yale.edu"
+  mail-type: "NONE"
+  o: 'OandE/{rule}.{wildcards}.out'
+  e: 'OandE/{rule}.{wildcards}.err'
+
+QCcombine_query:
+  time: "4:00:00"
+  mem-per-cpu: "5G"
+  ntasks: "1"
+  nodes: "1"
+
+prep_RefVCF:
+  time: "24:00:00"
+  mem: "32G"
+  ntasks: "1"
+  nodes: "1"
+
+phase:
+  time: "24:00:00"
+  mem-per-cpu: "5G"
+  nodes: "1"
+
+infer_ancestry:
+  time: "24:00:00"
+  mem-per-cpu: "5G"
+  nodes: "1"
+
+

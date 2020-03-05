@@ -17,26 +17,27 @@ configfile: "workflow/config.yml"
 SCRATCH = config['dir']['scratch']
 OUT = config['dir']['out']
 QUERY = config['query']
-REFFILE = config['reference']['vcf']
-POPFILE = config['reference']['subpops']
-MAPFILE = config['reference']['genmap']
 RF_GEN = config['rfmix']['generations']
 RF_REANALYZE = config['rfmix']['reanalyze_reference']
 RF_REFPOPS = config['rfmix']['ref_pops']
 RF_POPNAME = config['rfmix']['pop_names']
 CHROMS = config['chroms']
 PCNUM = config['admixMapping_PCnum']
+REFFILE = config['reference']['vcf']
+POPFILE = config['reference']['subpops']
+MAPFILE = config['reference']['genmap']
 
 if config['reference']['phased_bcf'] == 'none':
-    REFBCF=f"bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf')}.bcf"
+    REFBCF=f"{os.getcwd()}/bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf').strip('.bcf')}.subset.bcf"
 elif os.path.exists(config['reference']['phased_bcf']):
     REFBCF=config['reference']['phased_bcf']
 else:
     print("Did not find phased BCF file at " + config['reference']['phased_bcf'])
 
 if config['singularity']['use_singularity'] == 'true' and config['singularity']['image'] != "none":
-    bind_paths = ",".join([os.path.dirname(x) for x in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF]])
-    CMD_PREFIX = f"set +u; module load singularity; singularity exec --bind {bind_paths} {config['singularity']['image']}"
+    bind_paths = ",".join(set([os.path.dirname(x) for x in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF]]))
+    CMD_PREFIX = f"set +u; module load singularity; singularity exec --bind {bind_paths},{os.getcwd()} {config['singularity']['image']}"
+    #He has to specify version of singularity...
     CODE = config['singularity']['code']
 else:
     CMD_PREFIX = config['cmd_prefix']
@@ -50,8 +51,6 @@ if RF_REANALYZE == 'true':
     RF_REANALYZE = '--reanalyze-reference -e 6'
 else:
     RF_REANALYZE = ''
-
-
 
 # Set default internal variables
 PHASE_MAP = "accessory/Shapeit4_genetic_map"
@@ -83,8 +82,6 @@ rule all:
         expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 #         expand(f"beds/{{ind}}_A.bed", ind=INDS),
 #         expand(f"karyograms/{{ind}}_karyo.png", ind=INDS),
-#         "plink/ped_key.txt",
-#         f"{BASE}.admixMap.txt"
 
 rule clean:
     shell:
@@ -110,7 +107,7 @@ rule parse_plink:
 rule compress_and_index:
     input: f"vcfs/{BASE}.chr{{chrom}}.vcf"
     output: f"vcfs/{BASE}.chr{{chrom}}.vcf.gz"
-    shell: f"{CMD_PREFIX} bgzip {{input}}; tabix -p vcf {{output}}"
+    shell: f"{CMD_PREFIX} bgzip {{input}}; {CMD_PREFIX} tabix -p vcf {{output}}"
 
 rule phase_map:
     input: MAPFILE
@@ -126,7 +123,7 @@ rule prep_RefVCF:
     input: REFFILE, "accessory/Population_Map_File.txt"
     output: f"bcfs/{os.path.basename(REFBCF)}"
     run:
-        if config['reference']['phased_bcf'] == 'none':
+        if config['reference']['phased_bcf'] == 'none' or config['singularity']['use_singularity'] == 'true':
             with open('prep_RefVCF.sh', 'w') as temp_sh:
                 temp_sh.write(f"awk \'{{print $1}}\' {input[1]} | bcftools view -S - {input[0]} -Ob -o {output} --force-samples --threads {config['bcftools']['threads']}; bcftools index {output} --threads {config['bcftools']['threads']}\n")
             shell("{CMD_PREFIX} sh prep_RefVCF.sh")
@@ -171,21 +168,3 @@ rule make_hap_beds_wQual:
         with open(f"{wildcards.ind}_A.sh", 'w') as temp_sh:
             temp_sh.write(f"source activate py27; python {CODE}/msp2bed.py --rfmix rfmix/{BASE} --ind {wildcards.ind} --out beds/{wildcards.ind} --Qual\n")
         shell(f"{CMD_PREFIX} {{wildcards.ind}}_A.sh; rm {{wildcards.ind}}_A.sh")
-
-rule calcPCA:
-    input: f"{QUERY}.bed"
-    output: f"plink/{BASE}.eigenvec"
-    shell:
-        f"{CMD_PREFIX} plink --bfile {QUERY} --pca --out plink/{BASE}"
-
-# rule make_anc_peds:
-#     input: RFMIX_OUT
-#     output: f"plink/ped_key.txt"
-#     shell:
-#         f"{CMD_PREFIX} source activate py27; python {CODE}/rfmix2plink_tped.py --rfmix rfmix/{BASE} --fam {QUERY}.fam --out {BASE} --transpose --snps"
-
-# rule admixMap:
-#     input: "plink/ped_key.txt", f"plink/{BASE}.eigenvec"
-#     output: f"{BASE}.admixMap.txt"
-#     shell:
-#         f"module load R/3.6.0; Rscript scripts/admixMap.R {{input[0]}} {{input[1]}} {BASE}.admixMap.txt {PCNUM}"

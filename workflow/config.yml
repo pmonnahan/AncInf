@@ -1,13 +1,16 @@
 #Modify all lines indicated with MODIFY
-outname: "AncInf"
-samples: "all"  # This can be set to path of file containing individuals to be kept from merged query file. One sample per line.
-query: "/home/pmonnaha/shared/data/QC_allRaces/all_aric_merged_AA" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
+outname: "AncInf" # MODIFY: prefix used for naming output
+query: "PATH_TO_PLINK_PREFIX" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
 reference:
-  vcf: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
-  superpops: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
-  subpops: "accessory/1000G_PopLabels.txt"
-  genmap: "/home/pmonnaha/pmonnaha/accessory/genetic_map_hg19.txt"
+  vcf: "PATH_TO_DATA_SUBDIRECTORY/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.bcf" #MODIFY: Location of VCF with reference populations
+  superpops: "PATH_TO_DATA_SUBDIRECTORY/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt" #MODIFY
+  subpops: "PATH_TO_DATA_SUBDIRECTORY/1000G_PopLabels.txt" #MODIFY
+  genmap: "PATH_TO_DATA_SUBDIRECTORY/genetic_map_hg19.txt" #MODIFY
   phased_bcf: 'none'
+singularity:
+  use_singularity: 'true'
+  image: 'DIRECTORY_CONTAINING/AncestryInference.sif' # MODIFY
+  code: '/scripts/'
 perform_QC: 'false'
 QC:
   vm1: "0.2"
@@ -16,9 +19,10 @@ QC:
   maf: "0.01"  # mimimum Minor allele frequency
   hwe: "0.0000001"  # p-value threshold for whether site follows hardy-weinberg
   mbs: "0.0000001"  # p-value treshold for test of whether missingness varies by sex
+samples: "all"  # This can be set to path of file containing individuals to be kept from merged query file. One sample per line.
 rfmix:
-  ref_pops: "YRI,GWD,ESN,MSL,LWK,CEU,FIN,IBS,TSI" #MODIFY: Reference Populations to include.  Labels for each reference population is specified in pop_names
-  pop_names: "AFR,AFR,AFR,AFR,AFR,EUR,EUR,EUR,EUR" #MODIFY: Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
+  ref_pops: "YRI,GWD,ESN,MSL,LWK,CEU,FIN,IBS,TSI" # Reference Populations to include.  Labels for each reference population is specified in pop_names
+  pop_names: "AFR,AFR,AFR,AFR,AFR,EUR,EUR,EUR,EUR" # Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
   threads: "12" # Number of processors to use for parallel computation
   generations: "8" #Generations since admixture began
   reanalyze_reference: "true" #In the case a set of reference haplotypes may not be of "pure" ancestry and may themselves be somewhat admixed, the option --reanalyze-reference will cause the program to analyze the reference haplotypes as if they were query haplotypes, in addition to analyzing the query input.
@@ -30,16 +34,8 @@ bcftools:
 phase:
   threads: "12"
   pbwt_depth: "8"
-singularity:
-  use_singularity: 'false'
-  image: '/home/pmonnaha/pmonnaha/AncestryInference.sif'
-  code: '/scripts/'
-  vcf: "/home/pmonnaha/pmonnaha/misc/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
-  superpops: "/data/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt"
-  subpops: "/data/1000G_PopLabels.txt"
-  genmap: "/data/genetic_map_hg19.txt"
-  phased_bcf: '/data/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.bcf'
 cmd_prefix: "module load plink/1.90b6.10; module load htslib/1.6; module load bcftools/1.9;"
+# cmd_prefix is getting called for andy.
 dir:
   main: "/home/spectorl/pmonnaha/ancestry/" #CURRENTLY UNUSED
   scratch: "/scratch.global/pmonnaha/"
