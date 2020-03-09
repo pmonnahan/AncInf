@@ -102,7 +102,7 @@ rule QCcombine_query:
 rule parse_plink:
     input: f"{INPUT}.bed"
     output: f"vcfs/{BASE}.chr{{chrom}}.vcf"
-    shell: f"{CMD_PREFIX} plink --bfile {INPUT} --chr {{wildcards.chrom}} --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
+    shell: f"{CMD_PREFIX} plink --bfile {INPUT} --chr {{wildcards.chrom}} --keep-allele-order --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
 
 rule compress_and_index:
     input: f"vcfs/{BASE}.chr{{chrom}}.vcf"
