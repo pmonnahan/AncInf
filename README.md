@@ -1,6 +1,22 @@
 # AncInf
 
-Human ancestry inference using RFmix
+Human local ancestry inference using RFmix (Maples 2013).  
+
+The pipeline is coordinated and run on an HPC using Snakemake.  On UMN's HPC, snakemake can be installed by:
+
+    module load python3/3.6.3_anaconda5.0.1
+    conda install -c conda-forge -c bioconda snakemake python=3.6
+
+The 'module load' command will likely need to be run each time prior to use of Snakemake.
+
+
+Submit jobs to the HPC via:
+
+    snakemake -s workflow/Snakefile -j <XXXX> --cluster 'qsub -l {cluster.l} -M {cluster.M} -A {cluster.A} -m {cluster.m} -o {cluster.o} -e {cluster.e} -r {cluster.r}' --cluster-config workflow/cluster.yaml
+
+where -j specifies the maximum number of jobs to submit at a time.  Importantly, you will need to modify several lines in the *workflow/config.yml* file and the *workflow/cluster.yaml* file.  I have indicated the necessary lines in each file with #MODIFY.
+
+The installation of required programs can be completely avoid by utilizing a Singularity image.  This image is too large to be hosted on Github, although you can find the definitions file used to create the image at *./singularity/Singularity_defs.def*.  Building of images is still not currently supported at MSI, so I used a Vagrant virtual machine, which comes with Singularity pre-configured/installed (https://app.vagrantup.com/singularityware/boxes/singularity-2.4/versions/2.4).  I can also share the img file directly upon request.
 
 ## Requirements
 
@@ -93,3 +109,6 @@ To run a specific part of the pipeline, do:
 
     snakemake -R <rule_name> --cluster "qsub -l {cluster.l} -M {cluster.M} -A {cluster.A} -m {cluster.m} -o {cluster.o} -e {cluster.e} -r {cluster.r}" --cluster-config workflow/cluster.yaml -j 20 --rerun-incomplete
 where _rule\_name_ indicates the 'rule' (i.e. job) in the Snakefile that you wish to run.
+
+## Citations
+Maples, Brian K et al. “RFMix: a discriminative modeling approach for rapid and robust local-ancestry inference.” American journal of human genetics vol. 93,2 (2013): 278-88. doi:10.1016/j.ajhg.2013.06.020
