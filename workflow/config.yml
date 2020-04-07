@@ -1,4 +1,3 @@
-#Modify all lines indicated with MODIFY
 outname: "AncInf" # MODIFY: prefix used for naming output
 query: "PATH_TO_PLINK_PREFIX" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
 reference:
@@ -11,6 +10,7 @@ singularity:
   use_singularity: 'true'
   image: 'DIRECTORY_CONTAINING/AncestryInference.sif' # MODIFY
   code: '/scripts/'
+  module: 'module load singularity' # MODIFY
 perform_QC: 'false'
 QC:
   vm1: "0.2"
@@ -35,7 +35,6 @@ phase:
   threads: "12"
   pbwt_depth: "8"
 cmd_prefix: "module load plink/1.90b6.10; module load htslib/1.6; module load bcftools/1.9;"
-# cmd_prefix is getting called for andy.
 dir:
   main: "/home/spectorl/pmonnaha/ancestry/" #CURRENTLY UNUSED
   scratch: "/scratch.global/pmonnaha/"

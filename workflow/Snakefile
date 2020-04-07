@@ -36,7 +36,7 @@ else:
 
 if config['singularity']['use_singularity'] == 'true' and config['singularity']['image'] != "none":
     bind_paths = ",".join(set([os.path.dirname(x) for x in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF]]))
-    CMD_PREFIX = f"set +u; module load singularity; singularity exec --bind {bind_paths},{os.getcwd()} {config['singularity']['image']}"
+    CMD_PREFIX = f"set +u; {config['singularity']['module']}; singularity exec --bind {bind_paths},{os.getcwd()} {config['singularity']['image']}"
     #He has to specify version of singularity...
     CODE = config['singularity']['code']
 else:
@@ -122,13 +122,15 @@ rule pop_map:
 rule prep_RefVCF:
     input: REFFILE, "accessory/Population_Map_File.txt"
     output: f"bcfs/{os.path.basename(REFBCF)}"
+    threads: int(config['bcftools']['threads'])
     run:
-        if config['reference']['phased_bcf'] == 'none' or config['singularity']['use_singularity'] == 'true':
+        if config['reference']['phased_bcf'] == 'none':
             with open('prep_RefVCF.sh', 'w') as temp_sh:
-                temp_sh.write(f"awk \'{{print $1}}\' {input[1]} | bcftools view -S - {input[0]} -Ob -o {output} --force-samples --threads {config['bcftools']['threads']}; bcftools index {output} --threads {config['bcftools']['threads']}\n")
+                temp_sh.write(f"awk \'{{print $1}}\' {input[1]} | bcftools view -S - {input[0]} -Ob -o {output} --force-samples --threads {threads}; bcftools index {output} --threads {threads}\n")
             shell("{CMD_PREFIX} sh prep_RefVCF.sh")
         else:
             shutil.copy(REFBCF, f"bcfs/{os.path.basename(REFBCF)}")
+            shell("{CMD_PREFIX} bcftools index {output} --threads {config['bcftools']['threads']}")
 
 rule phase:
     input:

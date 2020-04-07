@@ -72,6 +72,12 @@ From: ubuntu:latest
     apt-get install -y default-libmysqlclient-dev
     apt-get install -y libgdal-dev
 
+    apt install -y libgd-dev
+    apt install -y fontconfig
+    apt install -y libpango1.0-dev
+    apt install -y libgts-dev
+
+
 # Install R itself
 
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
@@ -82,15 +88,21 @@ From: ubuntu:latest
 
 
 # Install R Packages
-    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion')
+    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr')
     for (i in 1:length(pgs)){if (!pgs[i] %in% installed.packages()) install.packages(pgs[i])}"
     Rscript -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager')
-    BiocManager::install('BiocGenerics')"
+    BiocManager::install('BiocGenerics')
+    BiocManager::install('lfa')"
 
 # Tidy Up Apt-get package manager
 
     apt-get clean
 
+# Install GraphViz for creating PNG files of snakemake rule DAGs
+
+    wget --output-document=/usr/local/bin/graphviz.tar.gz https://graphviz.gitlab.io/pub/graphviz/stable/SOURCES/graphviz.tar.gz
+    tar -zxvf /usr/local/bin/graphviz.tar.gz --directory /usr/local/bin/
+    cd /usr/local/bin/graphviz-2.40.1; ./configure; make; make install; cd
 
 # Install Eagle2 (to /usr/local/bin/)
 
@@ -145,6 +157,7 @@ From: ubuntu:latest
 # Temporary export Miniconda exec path to PATH to finish installation via miniconda
 
     export PATH=/usr/local/bin/miniconda/bin:$PATH
+#    . /usr/local/bin/miniconda/etc/profile.d/conda.sh
 
 # Download and install RFmix
     git clone https://github.com/slowkoni/rfmix.git /usr/local/bin/rfmix
@@ -155,6 +168,9 @@ From: ubuntu:latest
     cd /usr/local/bin/BLINK/
     unzip AMDAPPSDK-3.0.zip; cd AMDAPPSDK-3.0; ./install.sh -s --acceptEULA Y
 
+# Download vawk3
+    git clone https://github.com/pmonnahan/vawk /usr/local/bin/vawk
+
 # Setup Miniconda for Bioconda
 
     conda config --add channels defaults
@@ -163,7 +179,8 @@ From: ubuntu:latest
 
     conda create --name py27 python=2.7
 
-# Install Odyssey Dependencies via Bioconda
+
+# Install dependencies via Bioconda
 
     conda update conda
     conda install -y libgcc
@@ -176,7 +193,11 @@ From: ubuntu:latest
     conda install -y bcftools
     conda install -y plink
 
-
+    conda create --name py36 python=3.6
+    conda install -y pandas -n py36
+    conda install -y htslib -n py36
+    conda install -y bcftools -n py36
+    conda install -y plink -n py36
 
 %environment
 
@@ -186,6 +207,8 @@ PATH=$PATH:\
 /usr/local/bin/Eagle_v2.4.1:\
 /usr/local/bin/Minimach4:\
 /usr/local/bin/rfmix:\
+/usr/local/bin/graphviz-2.40.1:\
+/usr/local/bin/vawk:\
 $HOME/.local/bin:\
 
 # Export path and other things
