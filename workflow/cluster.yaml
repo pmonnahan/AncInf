@@ -3,31 +3,39 @@ __default__:
   queue: mangi #MODIFY
   A: 'spectorl' #MODIFY
   M: 'pmonnaha@umn.edu' #MODIFY
-  l: 'nodes=1:ppn=1,walltime=4:00:00,pmem=2500mb'
+  walltime: '04:00:00'
+  mem: '8000mb'
   m: 'a'
   r: 'n'
   o: 'OandE/{rule}.{wildcards}.out'
   e: 'OandE/{rule}.{wildcards}.err'
 
 QCcombine_query:
-  l: 'walltime=04:00:00,pmem=2500mb'
+  walltime: '04:00:00'
+  mem: '8000mb'
 
 prep_RefVCF:
-  l: 'walltime=48:00:00,mem=32gb'
+  walltime: '48:00:00'
+  mem: '32gb'
 
 phase:
-  l: 'walltime=24:00:00,mem=32gb'
+  walltime: '24:00:00'
+  mem: '32gb'
 
 infer_ancestry:
-  l: 'walltime=48:00:00,mem=32gb'
+  walltime: '48:00:00'
+  mem: '32gb'
 
 make_hap_beds:
-  l: 'walltime=00:30:00,mem=3gb'
+  walltime: '04:00:00'
+  mem: '8000mb'
 
 plot_karyograms:
-  l: 'walltime=00:30:00,mem=3gb'
+  walltime: '04:00:00'
+  mem: '8000mb'
 
 admixMap:
-  l: 'walltime=06:00:00,mem=32gb'
+  walltime: '04:00:00'
+  mem: '8000mb'
 
 

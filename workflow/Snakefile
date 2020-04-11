@@ -74,6 +74,12 @@ localrules: all, phase_map, pop_map
 
 RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
+def get_prep_RefVCF_input(wildcards):
+    input = "accessory/Population_Map_File.txt"
+    if config['reference']['phased_bcf'] == "none":
+        input += f", {REFFILE}"
+    return(input)
+
 rule all:
     input:
         f"{INPUT}.bed",
@@ -120,7 +126,7 @@ rule pop_map:
     shell: f"{CMD_PREFIX} python3.6 {CODE}/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
 
 rule prep_RefVCF:
-    input: REFFILE, "accessory/Population_Map_File.txt"
+    input: get_prep_RefVCF_input
     output: f"bcfs/{os.path.basename(REFBCF)}"
     threads: int(config['bcftools']['threads'])
     run:
@@ -130,7 +136,9 @@ rule prep_RefVCF:
             shell("{CMD_PREFIX} sh prep_RefVCF.sh")
         else:
             shutil.copy(REFBCF, f"bcfs/{os.path.basename(REFBCF)}")
-            shell("{CMD_PREFIX} bcftools index {output} --threads {config['bcftools']['threads']}")
+            shell(f"{CMD_PREFIX} bcftools index {{output}} --threads {config['bcftools']['threads']}")
+
+print(int(config['phase']['threads']))
 
 rule phase:
     input:
