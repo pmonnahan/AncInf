@@ -34,6 +34,7 @@ bcftools:
 phase:
   threads: "12"
   pbwt_depth: "8"
+  sequence_data: 'true'
 cmd_prefix: "module load plink/1.90b6.10; module load htslib/1.6; module load bcftools/1.9;"
 dir:
   main: "/home/spectorl/pmonnaha/ancestry/" #CURRENTLY UNUSED

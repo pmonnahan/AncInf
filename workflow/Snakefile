@@ -82,6 +82,7 @@ def get_prep_RefVCF_input(wildcards):
 
 rule all:
     input:
+        f"{OUT}-rulegraph.png",
         f"{INPUT}.bed",
         f"bcfs/{os.path.basename(REFBCF)}",
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
@@ -92,6 +93,11 @@ rule all:
 rule clean:
     shell:
         "rm vcfs/*; rm bcfs/*; rm rfmix/*; rm beds/*; rm karyograms/*"
+
+rule make_rulegraph:
+    output: f"{OUT}-rulegraph.png"
+    params: mod_cmd = CMD_PREFIX.replace(f"set +u; {config['singularity']['module']};", "")
+    shell: "snakemake --rulegraph --configfile workflow/config.yml | {params.mod_cmd} dot -Tpng > {output}"
 
 rule QCcombine_query:
     input: f"{QUERY}.bed"
@@ -147,8 +153,11 @@ rule phase:
         f"bcfs/{os.path.basename(REFBCF)}"
     output: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf"
     threads: int(config['phase']['threads'])
-    shell:
-        f"{CMD_PREFIX} shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {{threads}} --reference {{input[2]}} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && {CMD_PREFIX} bcftools index {{output}} --threads {{threads}}"
+    run:
+        if config['phase']['sequence_data'] == 'true':
+            shell(f"{CMD_PREFIX} shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --sequencing -T {{threads}} --reference {{input[2]}} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && {CMD_PREFIX} bcftools index {{output}} --threads {{threads}}")
+        else:
+            shell(f"{CMD_PREFIX} shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {{threads}} --reference {{input[2]}} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && {CMD_PREFIX} bcftools index {{output}} --threads {{threads}}")
 
 rule infer_ancestry:
     input: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", "accessory/Population_Map_File.txt"

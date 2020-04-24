@@ -77,6 +77,11 @@ From: ubuntu:latest
     apt install -y libpango1.0-dev
     apt install -y libgts-dev
 
+    apt-get install -y texlive-latex-base
+    apt-get install -y texlive-fonts-recommended
+    apt-get install -y texlive-fonts-extra
+    apt-get install -y texlive-latex-extra
+
 
 # Install R itself
 
@@ -146,13 +151,13 @@ From: ubuntu:latest
 
 # Install Miniconda (to /usr/local/bin/); comment this step out if just updating an image
     # Download from site
-    wget --output-document=/usr/local/bin/MinicondaSetup.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+#    wget --output-document=/usr/local/bin/MinicondaSetup.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 
     # Congigure
-    bash /usr/local/bin/MinicondaSetup.sh -b -p /usr/local/bin/miniconda
+#    bash /usr/local/bin/MinicondaSetup.sh -b -p /usr/local/bin/miniconda
 
     # Remove the installation Clutter
-    rm /usr/local/bin/MinicondaSetup.sh
+#    rm /usr/local/bin/MinicondaSetup.sh
 
 # Temporary export Miniconda exec path to PATH to finish installation via miniconda
 
@@ -160,16 +165,16 @@ From: ubuntu:latest
 #    . /usr/local/bin/miniconda/etc/profile.d/conda.sh
 
 # Download and install RFmix
-    git clone https://github.com/slowkoni/rfmix.git /usr/local/bin/rfmix
-    cd /usr/local/bin/rfmix; autoreconf --force --install; ./configure; make
+#    git clone https://github.com/slowkoni/rfmix.git /usr/local/bin/rfmix
+#    cd /usr/local/bin/rfmix; autoreconf --force --install; ./configure; make
 
 # Download BLINK (GWAS)
-    git clone https://github.com/Menggg/BLINK /usr/local/bin/BLINK
-    cd /usr/local/bin/BLINK/
-    unzip AMDAPPSDK-3.0.zip; cd AMDAPPSDK-3.0; ./install.sh -s --acceptEULA Y
+#    git clone https://github.com/Menggg/BLINK /usr/local/bin/BLINK
+#    cd /usr/local/bin/BLINK/
+#    unzip AMDAPPSDK-3.0.zip; cd AMDAPPSDK-3.0; ./install.sh -s --acceptEULA Y
 
 # Download vawk3
-    git clone https://github.com/pmonnahan/vawk /usr/local/bin/vawk
+#    git clone https://github.com/pmonnahan/vawk /usr/local/bin/vawk
 
 # Setup Miniconda for Bioconda
 
