@@ -36,7 +36,7 @@ else:
 
 if config['singularity']['use_singularity'] == 'true' and config['singularity']['image'] != "none":
     bind_paths = ",".join(set([os.path.dirname(x) for x in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF]]))
-    CMD_PREFIX = f"set +u; {config['singularity']['module']}; singularity exec --bind {bind_paths},{os.getcwd()} {config['singularity']['image']}"
+    CMD_PREFIX = f"set +u; {config['singularity']['module']}; singularity exec --bind input/,{bind_paths},{os.getcwd()} {config['singularity']['image']}"
     #He has to specify version of singularity...
     CODE = config['singularity']['code']
 else:
@@ -97,7 +97,7 @@ rule clean:
 rule make_rulegraph:
     output: f"{OUT}-rulegraph.png"
     params: mod_cmd = CMD_PREFIX.replace(f"set +u; {config['singularity']['module']};", "")
-    shell: "snakemake --rulegraph --configfile workflow/config.yml | {params.mod_cmd} dot -Tpng > {output}"
+    shell: f"{config['singularity']['module']}; snakemake --rulegraph --configfile workflow/config.yml | {{params.mod_cmd}} dot -Tpng > {{output}}"
 
 rule QCcombine_query:
     input: f"{QUERY}.bed"
@@ -144,7 +144,6 @@ rule prep_RefVCF:
             shutil.copy(REFBCF, f"bcfs/{os.path.basename(REFBCF)}")
             shell(f"{CMD_PREFIX} bcftools index {{output}} --threads {config['bcftools']['threads']}")
 
-print(int(config['phase']['threads']))
 
 rule phase:
     input:
@@ -187,3 +186,29 @@ rule make_hap_beds_wQual:
         with open(f"{wildcards.ind}_A.sh", 'w') as temp_sh:
             temp_sh.write(f"source activate py27; python {CODE}/msp2bed.py --rfmix rfmix/{BASE} --ind {wildcards.ind} --out beds/{wildcards.ind} --Qual\n")
         shell(f"{CMD_PREFIX} {{wildcards.ind}}_A.sh; rm {{wildcards.ind}}_A.sh")
+
+#TODO: Finish make_report for AncInf
+rule make_report:
+    input: expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS), f"{OUT}-rulegraph.png"
+    output: f"{OUT}-AncestryInference-report.pdf"
+    run:
+        with open("scripts/gather_report_data.sh", 'w') as report_cmds:
+            report_cmds.write(f"ls .")
+            # report_cmds.write("wc -l */tmp/*txt | grep -v -e scripts -e total | awk \'{split($2,a,\"/\"); split(a[3],b,\".\"); split(b[1],c,\"-\"); print c[1],b[3],$1}\' > accessory/filter.stats\n")
+            # report_cmds.write("wc -l */tmp/*alleles_IDs.bim | grep -v -e total | awk \'{split($2,a,\"/\"); split(a[3],b,\".\"); split(b[1],c,\"_\"); printf(\"%s raw %s\\n\", c[1],$1)}\' >> accessory/filter.stats\n")
+            # report_cmds.write("grep -e NS OandE/FixRef.rawdata*err | grep -v Number | cut -d \"=\" -f 2 | awk \'{split($1,a,\".\"); print a[1],$2,$3,$4}\' | sed \'s/ref /ref-/\' | sed \'s/fixed /fixed-/\' | sed \'s/%//\' > accessory/FixRef.stats\n")
+            # report_cmds.write("zcat " + REFVCF +  " | vawk \'{split(I$CAF,a,\",\"); if($1==20) print $1,$2,$3,a[1]}\' | awk \'{{if(NF==4) print $0}}\' > accessory/ref_freqs.txt\n")
+            # report_cmds.write("zgrep -v \"#\" */*chr20.vcf.gz | shuf -n 100000 |  vawk \'{print $1,$2,$3, S$*$GT}\' | tr \"/\" \" \" | tr \":\" \" \" > accessory/dat_freqs.txt")
+        cmd = f"{CMD_PREFIX} sh scripts/gather_report_data.sh;"
+        # cmd += """
+        # echo 'rmarkdown::render("scripts/DataPrep_report.Rmd", \
+        #           output_file="{output}", \
+        #           params=list(flt_file="accessory/filter.stats", \
+        #                       FixRef_file="accessory/FixRef.stats", \
+        #                       rulegraph_file="{OUT}-rulegraph.png", \
+        #                       ref_freqs="accessory/ref_freqs.txt", \
+        #                       dat_freq="accessory/dat_freqs.txt", \
+        #                       config_file="workflow/config.yml"))' \
+        # | R --vanilla
+        # """
+        shell(cmd)

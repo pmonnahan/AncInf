@@ -71,6 +71,8 @@ From: ubuntu:latest
     apt-get install -y libmysqlclient-dev
     apt-get install -y default-libmysqlclient-dev
     apt-get install -y libgdal-dev
+    apt-get install -y pandoc
+    apt-get install -y python3-pip
 
     apt install -y libgd-dev
     apt install -y fontconfig
@@ -97,7 +99,10 @@ From: ubuntu:latest
     for (i in 1:length(pgs)){if (!pgs[i] %in% installed.packages()) install.packages(pgs[i])}"
     Rscript -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager')
     BiocManager::install('BiocGenerics')
-    BiocManager::install('lfa')"
+    BiocManager::install('lfa')
+    BiocManager::install('GWASTools')
+    BiocManager::install('SNPRelate')
+    BiocManager::install('GENESIS')"
 
 # Tidy Up Apt-get package manager
 
@@ -181,6 +186,7 @@ From: ubuntu:latest
     conda config --add channels defaults
     conda config --add channels bioconda
     conda config --add channels conda-forge
+    conda config --add channels r
 
     conda create --name py27 python=2.7
 
@@ -197,12 +203,23 @@ From: ubuntu:latest
     conda install -y htslib
     conda install -y bcftools
     conda install -y plink
+    conda install -y pysam
 
     conda create --name py36 python=3.6
     conda install -y pandas -n py36
     conda install -y htslib -n py36
     conda install -y bcftools -n py36
     conda install -y plink -n py36
+
+# Install CrossMap
+    pip install -U pip
+    pip3 install Cython
+    pip install numpy
+    pip install --upgrade pip
+    pip3 install pysam
+    pip3 install --no-cache bx-python
+    pip3 install CrossMap
+    pip3 install CrossMap --upgrade
 
 %environment
 
