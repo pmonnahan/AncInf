@@ -1,0 +1,247 @@
+---
+title: "Ancestry Inference Report"
+author: Patrick Monnahan
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document:
+    includes:
+      in_header: header.tex
+params:
+  rfmix_dir: NA
+  fam_file: NA
+  samp_file: NA
+  subpop_file: NA
+  rulegraph_file: NA
+  config_file: NA
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir=normalizePath('../'))
+knitr::opts_chunk$set(echo = FALSE, fig.height = 6, fig.width = 6, fig.align = 'center', fig.pos = 'H')
+```
+
+```{r dependencies, include=FALSE}
+library("ggplot2")
+library("reshape2")
+library("yaml")
+library("dplyr")
+library("tidyr")
+library("magrittr")
+library("wrapr")
+library("stringr")
+library("foreach")
+library("forcats")
+library("ggridges")
+```
+
+```{r, include=FALSE}
+#Load functions
+readMSP = function(filename, cases=NA, filter_case = FALSE, label_case = TRUE){
+  q1h = read.table(filename, header=F, comment.char = "", nrows=2, fill = TRUE, stringsAsFactors = FALSE)
+  q1p = q1h[1,] %>% pivot_longer(colnames(q1h)) %>% filter(value != "") %>% separate(value, c("Pop","anc")) %>% filter(row_number()>2)
+  q1h = q1h[2,-6]
+  q1 = read.table(filename, header=F, comment.char = "", skip = 2)
+  colnames( q1 ) <- unlist(q1h)
+  q1 %<>% pivot_longer(-c(`#chm`,spos,epos,sgpos,egpos,snps), names_to="sample", values_to="anc")
+  q1 %<>% separate(sample, c("sample","hap"),"[.]") %>% mutate(chm = `#chm`, case = case_when(sample %in% cases$V1 ~ "case", TRUE ~ "control")) %>% select(-`#chm`)
+  q1 %<>% group_by(chm,spos,epos,sgpos,egpos,snps, case, sample) %>% count(anc) %>% ungroup() %>% mutate(anc = as.character(anc), mpos = (spos + epos)/2) %>% left_join(q1p, by = "anc") %>% select(-c(anc,name)) %>% group_by(mpos, case, Pop) %>% summarize(n = n()) %>% mutate(Prop = n / sum(n))
+  return(q1)
+}
+
+getGlobalAnc = function(rfmix_dir, samples){
+files <- list.files(rfmix_dir, pattern = "\\.Q$")
+DF = data.frame()
+for (i in 1:length(files)){
+  if (i==1){
+    header <- read.table(paste(rfmix_dir, files[i], sep="/"), nrows = 1, skip = 1, header = FALSE, comment.char = "", stringsAsFactors = FALSE)
+    header[,1] = 'sample'
+  }
+  dat = read.table(paste(rfmix_dir, files[i], sep="/"), skip=2, header=F, comment.char = "")
+  nrow(dat)
+  DF = rbind(DF, dat)
+}
+if (samples != "all"){
+  DF %<>% filter(V1 %in% samples)
+}
+DF %<>% pivot_longer(-V1, names_to="pop", values_to="ancestry") %>% group_by(V1, pop) %>% summarize(ancestry = mean(ancestry)) %>% spread(pop,ancestry)
+colnames( DF ) <- unlist(header)
+return(DF)
+}
+
+wrapMSP = function(rfmix_dir, cases){
+  files = list.files(rfmix_dir, pattern = ".msp.tsv")
+  dat = tibble()
+  for (f in 1:length(files)){
+    in_name = paste(rfmix_dir, files[f], sep = "")
+    q1 = readMSP(in_name, cases)
+    dat = bind_rows(dat, q1)
+  }
+  return(dat)
+}
+```
+
+
+```{r read_params, include=FALSE}
+
+if(any(unlist(lapply(params, function(x) x=="NA")))) stop("Missing input params")
+
+fam = read.table(params$fam_file, comment.char = "")
+cases = fam %>% filter(V6==2) %>% select(V2) %>% mutate(V1=V2) %>% select(V1)
+
+rulegraph_file <- params$rulegraph_file
+rfmix_dir <- params$rfmix_dir
+yaml <- read_yaml(params$config_file)
+
+g.anc = getGlobalAnc(rfmix_dir, fam$V2)
+
+subpop = read.table(params$subpop_file, fill=T)
+subpop %<>% mutate(Sample=V1,SubPop=V2) %>% select(Sample, SubPop)
+
+samp = read.table(params$samp_file)
+samp %<>% mutate(Sample=V1,SuperPop=V2) %>% select(Sample,SuperPop) %>% left_join(subpop, by="Sample")
+
+
+```
+
+
+This report summarizes relevant information of the input, output, and intermediate steps of a pipeline (\href{https://github.com/pmonnahan/AncInf}{{\color{blue}{\underline{Github repo}}}}) implementing \href{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3738819/}{{\color{blue}{\underline{RFMix}}}} for the purposes of local ancestry inference and ultimately admixture mapping.  The basic workflow (which is illustrated in the 'Rule Graph' at the bottom of this document) is to parse the input PLINK file by chromosome, perform reference-based haplotype phasing on the data using \href{https://odelaneau.github.io/shapeit4/}{{\color{blue}{\underline{Shapeit4}}}}, and, finally, perform local ancestry inference with RFMix.  With the RFMix output, admixture Mapping (i.e. associating local ancestry with phenotype) can be accomplished via a separate pipeline found \href{https://github.com/pmonnahan/admixMap}{{\color{blue}{\underline{here}}}}.
+
+The results presented here were generated using the following dataset as input:
+
+```{r input-datasets}
+yaml$query
+```
+
+and the pipeline was carried out using the following singularity image:
+```{r singularity-image}
+yaml$singularity$image
+```
+
+
+### Reference population summary
+The reference VCF that was used for phasing as well as for ancestry inference is:
+
+```{r ref-VCF}
+yaml$reference$vcf
+```
+
+which was subset to include all individuals belonging to the following populations:
+
+```{r ref-pops, fig.cap="Counts of reference individuals from each subpopulation labelled by the SuperPopulation used for Ancestry Inference"}
+samp %>% count(SuperPop,SubPop) %>% knitr::kable()
+# yaml$rfmix %>% as.data.frame() %>% mutate(Pop.Name = ref_pops, SuperPop = pop_names) %>% select(Pop.Name, SuperPop) %>% pivot_longer(c(Pop.Name, SuperPop)) %>% separate(value,into = paste("V",1:length(str_split(yaml$rfmix$pop_names, ",")[[1]]), sep="_"), ",")
+```
+
+For ancestry inference in RFMix, subpopulation labels were replaced with SuperPopulations, and admixture is modelled between these superpopulations.  RFMix will sample randomly from within these superpopulations to generate the training/test sets needed for the machine learning algorithm.  It is best if the reference individuals from a superpopulation are evenly distributed across subpopulations, so that a single subpopulation does not dominate during the resampling.  
+
+### RFMix process summary
+
+RFMix outputs a number of files into the 'rfmix' subdirectory that was produced by this pipeline.  The most relevant files are those ending in '.Q', which contain the global ancestry percentage estimates for each individual, and the files ending in '.msp.tsv', which contain the maximum-likelihood ancestry state in each window analyzed (i.e. local ancestry).  The .Q files can be easily filtered to isolate individuals of a given ethnicity, based on user-provided thresholds.  
+
+Admixture between the superpopulations is assumed to have begun:
+```{r rfmix-gens}
+yaml$rfmix$generations
+```
+generations ago.
+
+If the following flag is set to "true", then the reference populations were assumed to be admixed as well, invoking an iterative procedure in RFMix to update haplotype information in the reference populations.
+```{r rfmix-reanalyze}
+yaml$rfmix$reanalyze_reference
+```
+
+The following figures and table are based on the global ancestry (taken from .Q files).  A .Q file is given for each chromosome, and the values here represent the average value across chromosomes for an individual.  
+```{r rfmix-global.anc.dist, fig.height = 4, fig.width = 4, fig.cap = "Density plots of individuals' inferred global ancestry", warning=FALSE, message=FALSE}
+g.anc %>% pivot_longer(2:ncol(g.anc), names_to = "Ancestry", values_to = "Prop.Anc") %>% mutate(case = case_when(sample %in% cases$V1 ~ "case", TRUE ~ "control")) %>% ggplot(aes(x = Prop.Anc * 100, y = Ancestry, fill = case)) + geom_density_ridges(alpha = 0.5) + xlab("Percent Ancestry") + ylab("Ancestry Component") + scale_fill_discrete(name="")
+```
+
+
+```{r rfmix-global.anc.hist, fig.height = 4, fig.width = 4, fig.cap = "Histogram of individuals' inferred global ancestry", warning=FALSE, message=FALSE}
+g.anc %>% pivot_longer(2:ncol(g.anc), names_to = "Ancestry", values_to = "Prop.Anc") %>% mutate(case = case_when(sample %in% cases$V1 ~ "case", TRUE ~ "control")) %>% ggplot(aes(x = Prop.Anc * 100, fill = case)) + geom_histogram(position=position_dodge()) + facet_grid(~Ancestry) + xlab("Percent Ancestry") + scale_fill_discrete(name="")
+```
+
+
+```{r rfmix-global.anc.tab, fig.cap = "Summary table of global ancestry"}
+g.anc %>% pivot_longer(2:ncol(g.anc), names_to = "Ancestry", values_to = "Prop.Anc") %>% mutate(case = case_when(sample %in% cases$V1 ~ "case", TRUE ~ "control")) %>% group_by(case, Ancestry) %>% summarise(mean = mean(Prop.Anc), median = median(Prop.Anc)) %>% knitr::kable()
+```
+
+\newpage 
+
+
+```{r rfmix-chrom.plots, include=FALSE}
+# Consider adding centromere locations
+files = list.files(rfmix_dir, pattern = ".msp.tsv")
+for (f in 1:length(files)){
+  in_name = paste(rfmix_dir, files[f], sep = "/")
+  chrom = str_split(files[f], '[.]')[[1]][[2]]
+  # print(in_name)
+  q1 = readMSP(in_name, cases)
+  png(paste0("chrom_plots/",chrom,".png"))
+  plt = q1 %>% ggplot(aes(x = mpos / 1000000, y = Prop * 100, color = Pop, linetype=case)) + geom_line() + ggtitle(chrom) + ylab("Mean Ancestry Percentage") + xlab("Position (Mb)")
+  print(plt)
+  dev.off()
+  }
+```
+
+A good initial check that the results are sensical is to simply look at the average local ancestry along a chromosome.  These estimates should remain fairly stable.  Any large, sudden changes in the dominant ancestral component are indicative of issues in phasing or ancestry inference.  Furthermore, these chromosome plots should be inspected to identify areas of suspect inference.  For example, drastic changes in average ancestry is often observed near centromeres or telomeres.  These can also likely be flagged by low SNP counts in the inferred windows (which is reported in the .msp.tsv. files).  A full collection of these images (one for each chromosome) should have been created and output into the 'chrom_plots' folder within the master run directory.  
+```{r rfmix-chrom.plot.incl, warning=FALSE, message=FALSE}
+# Consider adding centromere locations
+CHROM = "chr12"
+files = list.files(rfmix_dir, pattern = ".msp.tsv")
+for (f in 1:length(files)){
+  in_name = paste(rfmix_dir, files[f], sep = "/")
+  chrom = str_split(files[f], '[.]')[[1]][[2]]
+  if (chrom==CHROM){
+  plt = ggplot(readMSP(in_name, cases), aes(x = mpos / 1000000, y = Prop * 100, color = Pop, linetype=case)) + geom_line() + ggtitle(chrom) + ylab("Mean Ancestry Percentage") + xlab("Position (Mb)")
+  print(plt)
+  }
+  }
+```
+
+
+\newpage
+
+## Rule Graph
+
+Below is a directed acyclic graph depicting the steps involved in this post-imputation QC pipeline.  When possible, computation within each node was parallelized by dataset, chromosome, etc.  The full DAG visualizing the parallel computing can be generated via:
+
+    snakemake --dag | dot -Tpng > jobgraph.png
+    
+from within the directory that the post-imputation QC was carried out.  These are typically too large to fit easily in a pdf, and so were not included in this report.
+
+```{r, fig.cap = "A rule graph showing the different steps of the bioinformatic analysis that is included in the Snakemake workflow.", out.height = "11cm"}
+knitr::include_graphics(normalizePath(rulegraph_file))
+```
+
+\newpage
+
+## Reproducibility
+
+The code for reproducing this analysis is available \href{https://github.com/pmonnahan/AncInf}{{\color{blue}{\underline{here}}}}. The repo contains:
+
+* A Snakemake workflow for running all steps.
+* A collection of scripts to acheive individual steps
+* A Singularity definitions file that can be used to generate the Singularity image used to run all steps.
+** This image file is also directly available upon request
+
+The pipeline was carried out using the following singularity image:
+```{r singularity-image2}
+yaml$singularity$image
+```
+
+
+The code for reproducing this report is available \href{https://github.com/pmonnahan/DataPrep/blob/master/scripts/AncInf_report.Rmd}{{\color{blue}{\underline{here}}}}.
+
+The input files for the figures produced herein are from:
+
+```{r input-files}
+params
+```
+Also, see the config.yml in the workflow directory for full list of parameter inputs and settings.
+
+The results in this supplementary were generated in the following R environment:
+
+\footnotesize
+```{r session_info}
+sessionInfo()
+```
+\normalsize

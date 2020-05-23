@@ -70,32 +70,33 @@ dirs = ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "pl
 for directory in dirs:
     if not os.path.exists(directory): os.mkdir(directory)
 
-localrules: all, phase_map, pop_map
+localrules: all, phase_map, pop_map, clean
 
 RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
 def get_prep_RefVCF_input(wildcards):
-    input = "accessory/Population_Map_File.txt"
-    if config['reference']['phased_bcf'] == "none":
-        input += f", {REFFILE}"
+    input = ["accessory/Population_Map_File.txt"]
+    if config['reference']['phased_bcf'] == "none": input.append(REFFILE)
+    else: input.append(REFBCF)
     return(input)
 
 rule all:
     input:
-        f"{OUT}-rulegraph.png",
+        f"{BASE}-rulegraph.png",
         f"{INPUT}.bed",
         f"bcfs/{os.path.basename(REFBCF)}",
         expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
-        expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
+        expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
+        f"{BASE}-AncestryInference-report.pdf"
 #         expand(f"beds/{{ind}}_A.bed", ind=INDS),
 #         expand(f"karyograms/{{ind}}_karyo.png", ind=INDS),
 
 rule clean:
     shell:
-        "rm vcfs/*; rm bcfs/*; rm rfmix/*; rm beds/*; rm karyograms/*"
+        "rm vcfs/*; rm bcfs/*; rm rfmix/*"
 
 rule make_rulegraph:
-    output: f"{OUT}-rulegraph.png"
+    output: f"{BASE}-rulegraph.png"
     params: mod_cmd = CMD_PREFIX.replace(f"set +u; {config['singularity']['module']};", "")
     shell: f"{config['singularity']['module']}; snakemake --rulegraph --configfile workflow/config.yml | {{params.mod_cmd}} dot -Tpng > {{output}}"
 
@@ -138,7 +139,7 @@ rule prep_RefVCF:
     run:
         if config['reference']['phased_bcf'] == 'none':
             with open('prep_RefVCF.sh', 'w') as temp_sh:
-                temp_sh.write(f"awk \'{{print $1}}\' {input[1]} | bcftools view -S - {input[0]} -Ob -o {output} --force-samples --threads {threads}; bcftools index {output} --threads {threads}\n")
+                temp_sh.write(f"awk \'{{print $1}}\' {input[0]} | bcftools view -S - {input[1]} -Ob -o {output} --force-samples --threads {threads}; bcftools index {output} --threads {threads}\n")
             shell("{CMD_PREFIX} sh prep_RefVCF.sh")
         else:
             shutil.copy(REFBCF, f"bcfs/{os.path.basename(REFBCF)}")
@@ -189,26 +190,23 @@ rule make_hap_beds_wQual:
 
 #TODO: Finish make_report for AncInf
 rule make_report:
-    input: expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS), f"{OUT}-rulegraph.png"
-    output: f"{OUT}-AncestryInference-report.pdf"
+    input: expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS), f"{BASE}-rulegraph.png"
+    output: f"{BASE}-AncestryInference-report.pdf"
     run:
+        if not os.path.exists("chrom_plots"): os.mkdir("chrom_plots")
         with open("scripts/gather_report_data.sh", 'w') as report_cmds:
-            report_cmds.write(f"ls .")
+            report_cmds.write(f"bcftools query -l {REFBCF} | grep -f - accessory/Population_Map_File.txt > accessory/realized_ref_samples.txt\n")
             # report_cmds.write("wc -l */tmp/*txt | grep -v -e scripts -e total | awk \'{split($2,a,\"/\"); split(a[3],b,\".\"); split(b[1],c,\"-\"); print c[1],b[3],$1}\' > accessory/filter.stats\n")
             # report_cmds.write("wc -l */tmp/*alleles_IDs.bim | grep -v -e total | awk \'{split($2,a,\"/\"); split(a[3],b,\".\"); split(b[1],c,\"_\"); printf(\"%s raw %s\\n\", c[1],$1)}\' >> accessory/filter.stats\n")
             # report_cmds.write("grep -e NS OandE/FixRef.rawdata*err | grep -v Number | cut -d \"=\" -f 2 | awk \'{split($1,a,\".\"); print a[1],$2,$3,$4}\' | sed \'s/ref /ref-/\' | sed \'s/fixed /fixed-/\' | sed \'s/%//\' > accessory/FixRef.stats\n")
             # report_cmds.write("zcat " + REFVCF +  " | vawk \'{split(I$CAF,a,\",\"); if($1==20) print $1,$2,$3,a[1]}\' | awk \'{{if(NF==4) print $0}}\' > accessory/ref_freqs.txt\n")
             # report_cmds.write("zgrep -v \"#\" */*chr20.vcf.gz | shuf -n 100000 |  vawk \'{print $1,$2,$3, S$*$GT}\' | tr \"/\" \" \" | tr \":\" \" \" > accessory/dat_freqs.txt")
-        cmd = f"{CMD_PREFIX} sh scripts/gather_report_data.sh;"
-        # cmd += """
-        # echo 'rmarkdown::render("scripts/DataPrep_report.Rmd", \
-        #           output_file="{output}", \
-        #           params=list(flt_file="accessory/filter.stats", \
-        #                       FixRef_file="accessory/FixRef.stats", \
-        #                       rulegraph_file="{OUT}-rulegraph.png", \
-        #                       ref_freqs="accessory/ref_freqs.txt", \
-        #                       dat_freq="accessory/dat_freqs.txt", \
-        #                       config_file="workflow/config.yml"))' \
-        # | R --vanilla
-        # """
-        shell(cmd)
+            report_line = f"echo \'rmarkdown::render(\"scripts/AncInf_report.Rmd\", output_file=\"{BASE}-AncestryInference-report.pdf\", " \
+                          f"params=list(rfmix_dir=\"rfmix\", " \
+                          f"fam_file=\"{QUERY}.fam\", " \
+                          f"samp_file=\"accessory/realized_ref_samples.txt\", " \
+                          f"subpop_file=\"{POPFILE}\", " \
+                          f"rulegraph_file=\"{BASE}-rulegraph.png\", " \
+                          f"config_file=\"workflow/config.yml\"))\' | R --vanilla"
+            report_cmds.write(report_line)
+        shell(f"{CMD_PREFIX} sh scripts/gather_report_data.sh; mv scripts/{BASE}-AncestryInference-report.pdf {BASE}-AncestryInference-report.pdf")

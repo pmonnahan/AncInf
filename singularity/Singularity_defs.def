@@ -95,7 +95,7 @@ From: ubuntu:latest
 
 
 # Install R Packages
-    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr')
+    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr', 'ggridges')
     for (i in 1:length(pgs)){if (!pgs[i] %in% installed.packages()) install.packages(pgs[i])}"
     Rscript -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager')
     BiocManager::install('BiocGenerics')
@@ -180,6 +180,11 @@ From: ubuntu:latest
 
 # Download vawk3
 #    git clone https://github.com/pmonnahan/vawk /usr/local/bin/vawk
+
+# Download KING (kinship estimation)
+    wget --output-document=/usr/local/bin/Linux-king.tar.gz http://people.virginia.edu/~wc9c/KING/Linux-king.tar.gz
+    tar -xzvf /usr/local/bin/Linux-king.tar.gz -C /usr/local/bin/
+    rm /usr/local/bin/Linux-king.tar.gz
 
 # Setup Miniconda for Bioconda
 
