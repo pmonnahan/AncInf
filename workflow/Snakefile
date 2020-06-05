@@ -188,7 +188,6 @@ rule make_hap_beds_wQual:
             temp_sh.write(f"source activate py27; python {CODE}/msp2bed.py --rfmix rfmix/{BASE} --ind {wildcards.ind} --out beds/{wildcards.ind} --Qual\n")
         shell(f"{CMD_PREFIX} {{wildcards.ind}}_A.sh; rm {{wildcards.ind}}_A.sh")
 
-#TODO: Finish make_report for AncInf
 rule make_report:
     input: expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS), f"{BASE}-rulegraph.png"
     output: f"{BASE}-AncestryInference-report.pdf"
@@ -196,11 +195,6 @@ rule make_report:
         if not os.path.exists("chrom_plots"): os.mkdir("chrom_plots")
         with open("scripts/gather_report_data.sh", 'w') as report_cmds:
             report_cmds.write(f"bcftools query -l {REFBCF} | grep -f - accessory/Population_Map_File.txt > accessory/realized_ref_samples.txt\n")
-            # report_cmds.write("wc -l */tmp/*txt | grep -v -e scripts -e total | awk \'{split($2,a,\"/\"); split(a[3],b,\".\"); split(b[1],c,\"-\"); print c[1],b[3],$1}\' > accessory/filter.stats\n")
-            # report_cmds.write("wc -l */tmp/*alleles_IDs.bim | grep -v -e total | awk \'{split($2,a,\"/\"); split(a[3],b,\".\"); split(b[1],c,\"_\"); printf(\"%s raw %s\\n\", c[1],$1)}\' >> accessory/filter.stats\n")
-            # report_cmds.write("grep -e NS OandE/FixRef.rawdata*err | grep -v Number | cut -d \"=\" -f 2 | awk \'{split($1,a,\".\"); print a[1],$2,$3,$4}\' | sed \'s/ref /ref-/\' | sed \'s/fixed /fixed-/\' | sed \'s/%//\' > accessory/FixRef.stats\n")
-            # report_cmds.write("zcat " + REFVCF +  " | vawk \'{split(I$CAF,a,\",\"); if($1==20) print $1,$2,$3,a[1]}\' | awk \'{{if(NF==4) print $0}}\' > accessory/ref_freqs.txt\n")
-            # report_cmds.write("zgrep -v \"#\" */*chr20.vcf.gz | shuf -n 100000 |  vawk \'{print $1,$2,$3, S$*$GT}\' | tr \"/\" \" \" | tr \":\" \" \" > accessory/dat_freqs.txt")
             report_line = f"echo \'rmarkdown::render(\"scripts/AncInf_report.Rmd\", output_file=\"{BASE}-AncestryInference-report.pdf\", " \
                           f"params=list(rfmix_dir=\"rfmix\", " \
                           f"fam_file=\"{QUERY}.fam\", " \
