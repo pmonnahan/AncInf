@@ -229,7 +229,7 @@ yaml$singularity$image
 ```
 
 
-The code for reproducing this report is available \href{https://github.com/pmonnahan/DataPrep/blob/master/scripts/AncInf_report.Rmd}{{\color{blue}{\underline{here}}}}.
+The code for reproducing this report is available \href{https://github.com/pmonnahan/AncInf/blob/master/scripts/AncInf_report.Rmd}{{\color{blue}{\underline{here}}}}.
 
 The input files for the figures produced herein are from:
 

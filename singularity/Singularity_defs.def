@@ -95,7 +95,7 @@ From: ubuntu:latest
 
 
 # Install R Packages
-    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr', 'ggridges')
+    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr', 'ggridges', 'SPAtest')
     for (i in 1:length(pgs)){if (!pgs[i] %in% installed.packages()) install.packages(pgs[i])}"
     Rscript -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager')
     BiocManager::install('BiocGenerics')

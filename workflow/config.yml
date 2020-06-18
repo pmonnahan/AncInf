@@ -1,15 +1,14 @@
 outname: "AncInf" # MODIFY: prefix used for naming output
 query: "PATH_TO_PLINK_PREFIX" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
 reference:
-  vcf: "PATH_TO_DATA_SUBDIRECTORY/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.bcf" #MODIFY: Location of VCF with reference populations
-  superpops: "PATH_TO_DATA_SUBDIRECTORY/ALL.phase3_shapeit2_mvncall_integrated_v5a.20130502.superpopulations.txt" #MODIFY
+  vcf: "PATH_TO_DATA_SUBDIRECTORY/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
   subpops: "PATH_TO_DATA_SUBDIRECTORY/1000G_PopLabels.txt" #MODIFY
   genmap: "PATH_TO_DATA_SUBDIRECTORY/genetic_map_hg19.txt" #MODIFY
   phased_bcf: 'none'
 singularity:
   use_singularity: 'true'
   image: 'DIRECTORY_CONTAINING/AncestryInference.sif' # MODIFY
-  code: '/scripts/'
+  code: 'scripts/'
   module: 'module load singularity' # MODIFY
 perform_QC: 'false'
 QC:
@@ -33,7 +32,7 @@ bcftools:
   threads: '6'
 phase:
   threads: "12"
-  pbwt_depth: "8"
+  pbwt_depth: "4"
   sequence_data: 'true'
 cmd_prefix: "module load plink/1.90b6.10; module load htslib/1.6; module load bcftools/1.9;"
 dir:
