@@ -34,9 +34,19 @@ elif os.path.exists(config['reference']['phased_bcf']):
 else:
     print("Did not find phased BCF file at " + config['reference']['phased_bcf'])
 
+# Make subdirectories
+dirs = [f"{os.getcwd()}/{x}" for x in ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE"]]
+for directory in dirs:
+    if not os.path.exists(directory): os.mkdir(directory)
+for file in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF]:
+    if not os.path.isabs(file):
+        if os.path.exists(f"{os.getcwd()}/{file}"):
+            dirs.append(f"{os.getcwd()}/{os.path.dirname(file)}")
+    else: dirs.append(os.path.dirname(file))
+
 if config['singularity']['use_singularity'] == 'true' and config['singularity']['image'] != "none":
-    bind_paths = ",".join(set([os.path.dirname(x) for x in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF]]))
-    CMD_PREFIX = f"set +u; {config['singularity']['module']}; singularity exec --bind input/,{bind_paths},{os.getcwd()} {config['singularity']['image']}"
+    bind_paths = ",".join(set(dirs))
+    CMD_PREFIX = f"set +u; {config['singularity']['module']}; singularity exec --bind {bind_paths},{os.getcwd()} {config['singularity']['image']}"
     #He has to specify version of singularity...
     CODE = config['singularity']['code']
 else:
@@ -65,11 +75,6 @@ with open(QUERY + ".fam", 'r') as pop_file:
 if CHROMS == 'all':
     CHROMS = [str(x) for x in range(1, 23)]
 
-# Make subdirectories
-dirs = ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE"]
-for directory in dirs:
-    if not os.path.exists(directory): os.mkdir(directory)
-
 localrules: all, phase_map, pop_map, clean
 
 RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
@@ -97,8 +102,8 @@ rule clean:
 
 rule make_rulegraph:
     output: f"{BASE}-rulegraph.png"
-    params: mod_cmd = CMD_PREFIX.replace(f"set +u; {config['singularity']['module']};", "")
-    shell: f"{config['singularity']['module']}; snakemake --rulegraph --configfile workflow/config.yml | {{params.mod_cmd}} dot -Tpng > {{output}}"
+    shell:
+        f"snakemake --rulegraph --configfile workflow/config.yml > accessory/Pipeline_DAG.dot; {CMD_PREFIX} dot -Tpng accessory/Pipeline_DAG.dot > {{output}}"
 
 rule QCcombine_query:
     input: f"{QUERY}.bed"

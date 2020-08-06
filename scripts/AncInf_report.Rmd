@@ -6,6 +6,8 @@ output:
   pdf_document:
     includes:
       in_header: header.tex
+    toc: true
+    toc_depth: 3
 params:
   rfmix_dir: NA
   fam_file: NA
@@ -104,7 +106,7 @@ samp %<>% mutate(Sample=V1,SuperPop=V2) %>% select(Sample,SuperPop) %>% left_joi
 ```
 
 
-This report summarizes relevant information of the input, output, and intermediate steps of a pipeline (\href{https://github.com/pmonnahan/AncInf}{{\color{blue}{\underline{Github repo}}}}) implementing \href{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3738819/}{{\color{blue}{\underline{RFMix}}}} for the purposes of local ancestry inference and ultimately admixture mapping.  The basic workflow (which is illustrated in the 'Rule Graph' at the bottom of this document) is to parse the input PLINK file by chromosome, perform reference-based haplotype phasing on the data using \href{https://odelaneau.github.io/shapeit4/}{{\color{blue}{\underline{Shapeit4}}}}, and, finally, perform local ancestry inference with RFMix.  With the RFMix output, admixture Mapping (i.e. associating local ancestry with phenotype) can be accomplished via a separate pipeline found \href{https://github.com/pmonnahan/admixMap}{{\color{blue}{\underline{here}}}}.
+This report summarizes relevant information of the input, output, and intermediate steps of a pipeline (\href{https://github.com/pmonnahan/AncInf}{{\color{blue}{\underline{Github repo}}}}) implementing \href{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3738819/}{{\color{blue}{\underline{RFMix}}}} for the purposes of local ancestry inference and ultimately admixture mapping.  The basic workflow (which is illustrated in the 'Rule Graph' at the bottom of this document) is to parse the input PLINK file by chromosome, perform reference-based haplotype phasing on the data using \href{https://odelaneau.github.io/shapeit4/}{{\color{blue}{\underline{Shapeit4}}}}, and, finally, perform local ancestry inference with RFMix.  With the RFMix output, admixture mapping (i.e. associating local ancestry with phenotype) can be accomplished via a separate pipeline found \href{https://github.com/pmonnahan/admixMap}{{\color{blue}{\underline{here}}}}.
 
 The results presented here were generated using the following dataset as input:
 

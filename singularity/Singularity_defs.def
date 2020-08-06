@@ -35,6 +35,8 @@ From: ubuntu:latest
     apt -y install gnustep-base-runtime
     apt -y install locales
     apt -y install gzip
+    apt update
+    apt-get install -y openjdk-8-jre
     apt-get install -y git
     apt-get install -y autoconf
 
@@ -47,7 +49,7 @@ From: ubuntu:latest
     defaults write org.R-project.R force.LANG en_US.UTF-8
 
 # Install R dependencies
-
+    apt-get update
     apt -y install libcurl4-openssl-dev
     apt -y install libudunits2-dev
     apt -y install libssl-dev
@@ -88,21 +90,23 @@ From: ubuntu:latest
 # Install R itself
 
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran35/'
+    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran40/'
     apt update
     apt -y install r-base
     apt -y install libopenblas-base
 
 
 # Install R Packages
-    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr', 'ggridges', 'SPAtest')
+    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr', 'ggridges', 'SPAtest', 'devtools')
     for (i in 1:length(pgs)){if (!pgs[i] %in% installed.packages()) install.packages(pgs[i])}"
     Rscript -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager')
     BiocManager::install('BiocGenerics')
     BiocManager::install('lfa')
     BiocManager::install('GWASTools')
     BiocManager::install('SNPRelate')
-    BiocManager::install('GENESIS')"
+    BiocManager::install('GENESIS')
+    library(devtools)
+    install_github('kegrinde/STEAM')"
 
 # Tidy Up Apt-get package manager
 
@@ -185,6 +189,11 @@ From: ubuntu:latest
     wget --output-document=/usr/local/bin/Linux-king.tar.gz http://people.virginia.edu/~wc9c/KING/Linux-king.tar.gz
     tar -xzvf /usr/local/bin/Linux-king.tar.gz -C /usr/local/bin/
     rm /usr/local/bin/Linux-king.tar.gz
+
+# Download snpEff (Variant Annotation)
+   wget http://sourceforge.net/projects/snpeff/files/snpEff_latest_core.zip
+   unzip snpEff_latest_core.zip
+   java -jar snpEff/snpEff.jar download GRCh37.75
 
 # Setup Miniconda for Bioconda
 
