@@ -22,10 +22,10 @@ RF_REANALYZE = config['rfmix']['reanalyze_reference']
 RF_REFPOPS = config['rfmix']['ref_pops']
 RF_POPNAME = config['rfmix']['pop_names']
 CHROMS = config['chroms']
-PCNUM = config['admixMapping_PCnum']
 REFFILE = config['reference']['vcf']
 POPFILE = config['reference']['subpops']
 MAPFILE = config['reference']['genmap']
+SAMPLES = config['samples']
 
 if config['reference']['phased_bcf'] == 'none':
     REFBCF=f"{os.getcwd()}/bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf').strip('.bcf')}.subset.bcf"
@@ -35,10 +35,10 @@ else:
     print("Did not find phased BCF file at " + config['reference']['phased_bcf'])
 
 # Make subdirectories
-dirs = [f"{os.getcwd()}/{x}" for x in ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE"]]
+dirs = [f"{os.getcwd()}/{x}" for x in ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE", "scripts"]]
 for directory in dirs:
     if not os.path.exists(directory): os.mkdir(directory)
-for file in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF]:
+for file in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF, SAMPLES]:
     if not os.path.isabs(file):
         if os.path.exists(f"{os.getcwd()}/{file}"):
             dirs.append(f"{os.getcwd()}/{os.path.dirname(file)}")
@@ -48,7 +48,7 @@ if config['singularity']['use_singularity'] == 'true' and config['singularity'][
     bind_paths = ",".join(set(dirs))
     CMD_PREFIX = f"set +u; {config['singularity']['module']}; singularity exec --bind {bind_paths},{os.getcwd()} {config['singularity']['image']}"
     #He has to specify version of singularity...
-    CODE = config['singularity']['code']
+    CODE = f"{os.getcwd()}/{config['singularity']['code']}"
 else:
     CMD_PREFIX = config['cmd_prefix']
     CODE = config['dir']['code']
@@ -63,8 +63,8 @@ else:
     RF_REANALYZE = ''
 
 # Set default internal variables
-PHASE_MAP = "accessory/Shapeit4_genetic_map"
-NEW_POPFILE = "accessory/Population_Map_File.txt"
+PHASE_MAP = f"{os.getcwd()}/accessory/Shapeit4_genetic_map"
+NEW_POPFILE = f"{os.getcwd()}/accessory/Population_Map_File.txt"
 
 INDS = []
 with open(QUERY + ".fam", 'r') as pop_file:
@@ -80,7 +80,7 @@ localrules: all, phase_map, pop_map, clean
 RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
 def get_prep_RefVCF_input(wildcards):
-    input = ["accessory/Population_Map_File.txt"]
+    input = [NEW_POPFILE]
     if config['reference']['phased_bcf'] == "none": input.append(REFFILE)
     else: input.append(REFBCF)
     return(input)
@@ -89,9 +89,9 @@ rule all:
     input:
         f"{BASE}-rulegraph.png",
         f"{INPUT}.bed",
-        f"bcfs/{os.path.basename(REFBCF)}",
-        expand(f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
-        expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
+        f"{os.getcwd()}/bcfs/{os.path.basename(REFBCF)}",
+        expand(f"{os.getcwd()}/bcfs/{BASE}.chr{{chrom}}.phz.bcf", chrom=CHROMS),
+        expand(f"{os.getcwd()}/rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS),
         f"{BASE}-AncestryInference-report.pdf"
 #         expand(f"beds/{{ind}}_A.bed", ind=INDS),
 #         expand(f"karyograms/{{ind}}_karyo.png", ind=INDS),
@@ -103,7 +103,7 @@ rule clean:
 rule make_rulegraph:
     output: f"{BASE}-rulegraph.png"
     shell:
-        f"snakemake --rulegraph --configfile workflow/config.yml > accessory/Pipeline_DAG.dot; {CMD_PREFIX} dot -Tpng accessory/Pipeline_DAG.dot > {{output}}"
+        f"snakemake --rulegraph --configfile workflow/config.yml > {os.getcwd()}/accessory/Pipeline_DAG.dot; {CMD_PREFIX} dot -Tpng {os.getcwd()}/accessory/Pipeline_DAG.dot > {{output}}"
 
 rule QCcombine_query:
     input: f"{QUERY}.bed"
@@ -119,27 +119,34 @@ rule QCcombine_query:
 
 rule parse_plink:
     input: f"{INPUT}.bed"
-    output: f"vcfs/{BASE}.chr{{chrom}}.vcf"
-    shell: f"{CMD_PREFIX} plink --bfile {INPUT} --chr {{wildcards.chrom}} --keep-allele-order --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid"
+    output: f"{os.getcwd()}/vcfs/{BASE}.chr{{chrom}}.vcf"
+    run:
+        if SAMPLES == 'all':
+            shell(f"{CMD_PREFIX} plink --bfile {INPUT} --chr {{wildcards.chrom}} --keep-allele-order --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid")
+        elif os.path.exists(SAMPLES):
+            shell(f"{CMD_PREFIX} plink --bfile {INPUT} --chr {{wildcards.chrom}} --keep {SAMPLES} --keep-allele-order --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid")
+        else:
+            print("Must provide valid path for samples entry in config file or set it to 'all'")
+
 
 rule compress_and_index:
-    input: f"vcfs/{BASE}.chr{{chrom}}.vcf"
-    output: f"vcfs/{BASE}.chr{{chrom}}.vcf.gz"
+    input: f"{os.getcwd()}/vcfs/{BASE}.chr{{chrom}}.vcf"
+    output: f"{os.getcwd()}/vcfs/{BASE}.chr{{chrom}}.vcf.gz"
     shell: f"{CMD_PREFIX} bgzip {{input}}; {CMD_PREFIX} tabix -p vcf {{output}}"
 
 rule phase_map:
     input: MAPFILE
-    output: "accessory/Shapeit4_genetic_map{chrom}"
-    shell: "{CMD_PREFIX} python3.6 {CODE}/phase_map.py -i {input}"
+    output: f"{os.getcwd()}/accessory/Shapeit4_genetic_map{{chrom}}"
+    shell: f"{CMD_PREFIX} python3.7 {CODE}/phase_map.py -i {{input}} -o {os.getcwd()}/accessory/Shapeit4_genetic_map"
 
 rule pop_map:
     input: POPFILE
-    output: "accessory/Population_Map_File.txt"
-    shell: f"{CMD_PREFIX} python3.6 {CODE}/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
+    output: f"{os.getcwd()}/accessory/Population_Map_File.txt"
+    shell: f"{CMD_PREFIX} python3.7 {CODE}/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
 
 rule prep_RefVCF:
     input: get_prep_RefVCF_input
-    output: f"bcfs/{os.path.basename(REFBCF)}"
+    output: f"{os.getcwd()}/bcfs/{os.path.basename(REFBCF)}"
     threads: int(config['bcftools']['threads'])
     run:
         if config['reference']['phased_bcf'] == 'none':
@@ -153,10 +160,10 @@ rule prep_RefVCF:
 
 rule phase:
     input:
-        f"vcfs/{BASE}.chr{{chrom}}.vcf.gz",
-        "accessory/Shapeit4_genetic_map{chrom}",
-        f"bcfs/{os.path.basename(REFBCF)}"
-    output: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf"
+        f"{os.getcwd()}/vcfs/{BASE}.chr{{chrom}}.vcf.gz",
+        f"{os.getcwd()}/accessory/Shapeit4_genetic_map{{chrom}}",
+        f"{os.getcwd()}/bcfs/{os.path.basename(REFBCF)}"
+    output: f"{os.getcwd()}/bcfs/{BASE}.chr{{chrom}}.phz.bcf"
     threads: int(config['phase']['threads'])
     run:
         if config['phase']['sequence_data'] == 'true':
@@ -165,8 +172,8 @@ rule phase:
             shell(f"{CMD_PREFIX} shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {{threads}} --reference {{input[2]}} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && {CMD_PREFIX} bcftools index {{output}} --threads {{threads}}")
 
 rule infer_ancestry:
-    input: f"bcfs/{BASE}.chr{{chrom}}.phz.bcf", "accessory/Population_Map_File.txt"
-    output: f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q"
+    input: f"{os.getcwd()}/bcfs/{BASE}.chr{{chrom}}.phz.bcf", f"{os.getcwd()}/accessory/Population_Map_File.txt"
+    output: f"{os.getcwd()}/rfmix/{BASE}.chr{{chrom}}.rfmix.Q"
     threads: int(config['rfmix']['threads'])
     shell:
         f"{CMD_PREFIX} rfmix -f {{input[0]}} -r {REFBCF} -m {{input[1]}} -g {MAPFILE} -s {config['rfmix']['window_size']} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={{threads}} -G {RF_GEN} {RF_REANALYZE}"
@@ -194,7 +201,7 @@ rule make_hap_beds_wQual:
         shell(f"{CMD_PREFIX} {{wildcards.ind}}_A.sh; rm {{wildcards.ind}}_A.sh")
 
 rule make_report:
-    input: expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS), f"{BASE}-rulegraph.png"
+    input: expand(f"{os.getcwd()}/rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS), f"{BASE}-rulegraph.png"
     output: f"{BASE}-AncestryInference-report.pdf"
     run:
         if not os.path.exists("chrom_plots"): os.mkdir("chrom_plots")

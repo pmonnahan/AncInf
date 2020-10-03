@@ -75,6 +75,7 @@ From: ubuntu:latest
     apt-get install -y libgdal-dev
     apt-get install -y pandoc
     apt-get install -y python3-pip
+    apt-get install -y bedtools
 
     apt install -y libgd-dev
     apt install -y fontconfig

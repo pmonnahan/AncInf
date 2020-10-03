@@ -1,3 +1,5 @@
+# Specify absolute paths to files/directories, and use /home/... instead of /panfs/...  For some reason, singularity is now having bind issues with use of latter.
+
 outname: "AncInf" # MODIFY: prefix used for naming output
 query: "PATH_TO_PLINK_PREFIX" #MODIFY: Prefix for PLINK files containing all of the query samples for ancestry inference
 reference:
@@ -18,7 +20,7 @@ QC:
   maf: "0.01"  # mimimum Minor allele frequency
   hwe: "0.0000001"  # p-value threshold for whether site follows hardy-weinberg
   mbs: "0.0000001"  # p-value treshold for test of whether missingness varies by sex
-samples: "all"  # This can be set to path of file containing individuals to be kept from merged query file. One sample per line.
+samples: "all"  # This can be set to path of file containing individuals to be kept from merged query file. Must be in an acceptable format for subsetting plink files (One sample per line, two columns: fid iid)
 rfmix:
   ref_pops: "YRI,GWD,ESN,MSL,LWK,CEU,FIN,IBS,TSI,PUR,CLM,PEL,MXL,CDX,CHB,CHS,JPT,KHV,BEB,GIH,ITU,PJL,STU" # Reference Populations to include.  Labels for each reference population is specified in pop_names
   pop_names: "AFR,AFR,AFR,AFR,AFR,EUR,EUR,EUR,EUR,AMR,AMR,AMR,AMR,EAS,EAS,EAS,EAS,EAS,SAS,SAS,SAS,SAS,SAS" # Desired names (i.e. superpopulation names) of reference populations.  MUST BE IN SAME ORDER AS ref_pops
@@ -32,7 +34,7 @@ bcftools:
 phase:
   threads: "12"
   pbwt_depth: "4"
-  sequence_data: 'true'
+  sequence_data: 'false'
 cmd_prefix: "module load plink/1.90b6.10; module load htslib/1.6; module load bcftools/1.9;"
 dir:
   main: "/home/spectorl/pmonnaha/ancestry/" #CURRENTLY UNUSED
