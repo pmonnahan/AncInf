@@ -41,3 +41,4 @@ dir:
   scratch: "/scratch.global/pmonnaha/"
   out: "/scratch.global/pmonnaha/snakemake_testing/"
   code: './scripts/'
+python: 'python3.8'

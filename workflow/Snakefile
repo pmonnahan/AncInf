@@ -26,6 +26,7 @@ REFFILE = config['reference']['vcf']
 POPFILE = config['reference']['subpops']
 MAPFILE = config['reference']['genmap']
 SAMPLES = config['samples']
+PYTHON = config['python']
 
 if config['reference']['phased_bcf'] == 'none':
     REFBCF=f"{os.getcwd()}/bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf').strip('.bcf')}.subset.bcf"
@@ -113,7 +114,7 @@ rule QCcombine_query:
         hwe = config['QC']['hwe'], maf = config['QC']['maf'], mbs = config['QC']['mbs']
     run:
         if config['perform_QC'] == 'true':
-            shell(f"{CMD_PREFIX} python {CODE}/QC.py -i {{input}} -d input/ -o {BASE} -t {{threads}} -p plink -tvm1 {{params.tvm1}} -tgm {{params.tgm}} -tvm2 {{params.tvm2}} -hwe {{params.hwe}} -mbs {{params.mbs}} -maf {{params.maf}}")
+            shell(f"{CMD_PREFIX} {PYTHON} {CODE}/QC.py -i {{input}} -d input/ -o {BASE} -t {{threads}} -p plink -tvm1 {{params.tvm1}} -tgm {{params.tgm}} -tvm2 {{params.tvm2}} -hwe {{params.hwe}} -mbs {{params.mbs}} -maf {{params.maf}}")
         else:
             shell(f"{CMD_PREFIX} plink --bfile {QUERY} --make-bed --out {INPUT}")
 
@@ -137,12 +138,12 @@ rule compress_and_index:
 rule phase_map:
     input: MAPFILE
     output: f"{os.getcwd()}/accessory/Shapeit4_genetic_map{{chrom}}"
-    shell: f"{CMD_PREFIX} python3.7 {CODE}/phase_map.py -i {{input}} -o {os.getcwd()}/accessory/Shapeit4_genetic_map"
+    shell: f"{CMD_PREFIX} {PYTHON} {CODE}/phase_map.py -i {{input}} -o {os.getcwd()}/accessory/Shapeit4_genetic_map"
 
 rule pop_map:
     input: POPFILE
     output: f"{os.getcwd()}/accessory/Population_Map_File.txt"
-    shell: f"{CMD_PREFIX} python3.7 {CODE}/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
+    shell: f"{CMD_PREFIX} {PYTHON} {CODE}/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
 
 rule prep_RefVCF:
     input: get_prep_RefVCF_input

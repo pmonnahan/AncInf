@@ -23,7 +23,6 @@ From: ubuntu:latest
 
 %post
 
-
 # Install Important OS Programs
     apt update
     apt -y upgrade
@@ -35,11 +34,14 @@ From: ubuntu:latest
     apt -y install gnustep-base-runtime
     apt -y install locales
     apt -y install gzip
+#    apt -y install libicu60
+#    apt -y install libreadline7
     apt update
     apt-get install -y openjdk-8-jre
     apt-get install -y git
     apt-get install -y autoconf
-
+    apt-get update -y
+    apt-get install -y gawk
 
 
 # Export language preferences
@@ -61,11 +63,13 @@ From: ubuntu:latest
     apt -y install libgeos-dev
     apt-get install -y software-properties-common
     apt-get update
+    apt-get install -y libgit2-dev
     apt-get install -y gfortran
     apt-get install -y clang
     apt-get install -y mesa-common-dev
     apt-get install -y libglu1-mesa-dev
     apt-get install -y libsodium-dev
+    apt-get install -y libmariadb-dev
     apt-get install -y libmariadbclient-dev
     apt-get install -y libgmp3-dev
     apt-get install -y tabix
@@ -91,14 +95,20 @@ From: ubuntu:latest
 # Install R itself
 
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran40/'
+    add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
     apt update
+#    apt -y install r-recommended
+#    apt -y install r-base-dev
+#    apt -y install r-doc-html
+#    apt -y install r-base-core
+#    apt -y install r-base-html
     apt -y install r-base
+#    yum -y install R
     apt -y install libopenblas-base
 
 
 # Install R Packages
-    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr', 'ggridges', 'SPAtest', 'devtools')
+    Rscript -e "pgs=c('rgl', 'gdtools','openssl','StanHeaders','stringr','wrapr','dplyr','testit','doParallel','lme4','optparse','broom','data.table','tidyverse','qqman', 'manhattanly','scales','vctrs','ggplot2','car', 'MASS','gridExtra', 'rcompanion', 'DescTools', 'yaml', 'formattable', 'rtracklayer', 'knitr', 'ggridges', 'SPAtest', 'devtools')
     for (i in 1:length(pgs)){if (!pgs[i] %in% installed.packages()) install.packages(pgs[i])}"
     Rscript -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager')
     BiocManager::install('BiocGenerics')
@@ -161,13 +171,13 @@ From: ubuntu:latest
 
 # Install Miniconda (to /usr/local/bin/); comment this step out if just updating an image
     # Download from site
-#    wget --output-document=/usr/local/bin/MinicondaSetup.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    wget --output-document=/usr/local/bin/MinicondaSetup.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 
     # Congigure
-#    bash /usr/local/bin/MinicondaSetup.sh -b -p /usr/local/bin/miniconda
+    bash /usr/local/bin/MinicondaSetup.sh -b -p /usr/local/bin/miniconda
 
     # Remove the installation Clutter
-#    rm /usr/local/bin/MinicondaSetup.sh
+    rm /usr/local/bin/MinicondaSetup.sh
 
 # Temporary export Miniconda exec path to PATH to finish installation via miniconda
 
@@ -175,8 +185,8 @@ From: ubuntu:latest
 #    . /usr/local/bin/miniconda/etc/profile.d/conda.sh
 
 # Download and install RFmix
-#    git clone https://github.com/slowkoni/rfmix.git /usr/local/bin/rfmix
-#    cd /usr/local/bin/rfmix; autoreconf --force --install; ./configure; make
+    git clone https://github.com/slowkoni/rfmix.git /usr/local/bin/rfmix
+    cd /usr/local/bin/rfmix; autoreconf --force --install; ./configure; make
 
 # Download BLINK (GWAS)
 #    git clone https://github.com/Menggg/BLINK /usr/local/bin/BLINK
@@ -184,7 +194,7 @@ From: ubuntu:latest
 #    unzip AMDAPPSDK-3.0.zip; cd AMDAPPSDK-3.0; ./install.sh -s --acceptEULA Y
 
 # Download vawk3
-#    git clone https://github.com/pmonnahan/vawk /usr/local/bin/vawk
+    git clone https://github.com/pmonnahan/vawk /usr/local/bin/vawk
 
 # Download KING (kinship estimation)
     wget --output-document=/usr/local/bin/Linux-king.tar.gz http://people.virginia.edu/~wc9c/KING/Linux-king.tar.gz
@@ -195,12 +205,14 @@ From: ubuntu:latest
    wget http://sourceforge.net/projects/snpeff/files/snpEff_latest_core.zip
    unzip snpEff_latest_core.zip
    java -jar snpEff/snpEff.jar download GRCh37.75
+   java -jar snpEff/snpEff.jar download GRCh38.86
 
 # Setup Miniconda for Bioconda
 
     conda config --add channels defaults
     conda config --add channels bioconda
     conda config --add channels conda-forge
+    conda config --add channels hcc
     conda config --add channels r
 
     conda create --name py27 python=2.7
@@ -211,7 +223,7 @@ From: ubuntu:latest
     conda update conda
     conda install -y libgcc
     conda install -c bioconda shapeit4
-    conda install -c bioconda plink2
+    conda install -c hcc plink2
     conda install -y impute2
     conda install -y pandas
     conda install -c bioconda -c conda-forge snakemake

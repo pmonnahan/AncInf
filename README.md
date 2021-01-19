@@ -21,6 +21,7 @@ Human local ancestry inference using [RFmix](https://www.ncbi.nlm.nih.gov/pmc/ar
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
+![Pipeline DAG](https://github.com/pmonnahan/AncInf/blob/master/Pipeline_DAG.png)
 
 ## Requirements
 
