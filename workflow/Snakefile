@@ -28,12 +28,12 @@ MAPFILE = config['reference']['genmap']
 SAMPLES = config['samples']
 PYTHON = config['python']
 
-if config['reference']['phased_bcf'] == 'none':
+if config['reference']['subset_bcf'] == 'none':
     REFBCF=f"{os.getcwd()}/bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf').strip('.bcf')}.subset.bcf"
-elif os.path.exists(config['reference']['phased_bcf']):
-    REFBCF=config['reference']['phased_bcf']
+elif os.path.exists(config['reference']['subset_bcf']):
+    REFBCF=config['reference']['subset_bcf']
 else:
-    print("Did not find phased BCF file at " + config['reference']['phased_bcf'])
+    print("Did not find phased BCF file at " + config['reference']['subset_bcf'])
 
 # Make subdirectories
 dirs = [f"{os.getcwd()}/{x}" for x in ["input", "vcfs", "bcfs", "rfmix", "accessory", "beds", "karyograms", "plink", "OandE", "scripts"]]
@@ -82,7 +82,7 @@ RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
 def get_prep_RefVCF_input(wildcards):
     input = [NEW_POPFILE]
-    if config['reference']['phased_bcf'] == "none": input.append(REFFILE)
+    if config['reference']['subset_bcf'] == "none": input.append(REFFILE)
     else: input.append(REFBCF)
     return(input)
 
@@ -150,7 +150,7 @@ rule prep_RefVCF:
     output: f"{os.getcwd()}/bcfs/{os.path.basename(REFBCF)}"
     threads: int(config['bcftools']['threads'])
     run:
-        if config['reference']['phased_bcf'] == 'none':
+        if config['reference']['subset_bcf'] == 'none':
             with open('prep_RefVCF.sh', 'w') as temp_sh:
                 temp_sh.write(f"awk \'{{print $1}}\' {input[0]} | bcftools view -S - {input[1]} -Ob -o {output} --force-samples --threads {threads}; bcftools index {output} --threads {threads}\n")
             shell("{CMD_PREFIX} sh prep_RefVCF.sh")

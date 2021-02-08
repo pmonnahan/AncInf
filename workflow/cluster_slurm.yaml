@@ -4,7 +4,7 @@ __default__:
   p: 'amdsmall'
   job-name: "{rule}"
   time: "4:00:00"
-  mem-per-cpu: "5G"
+  mem: "5G"
   ntasks: "1"
   nodes: "1"
   mail-user: "pmonnaha@umn.edu"
@@ -14,7 +14,7 @@ __default__:
 
 QCcombine_query:
   time: "4:00:00"
-  mem-per-cpu: "5G"
+  mem: "5G"
   ntasks: "1"
   nodes: "1"
 

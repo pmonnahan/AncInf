@@ -6,7 +6,7 @@ reference:
   vcf: "PATH_TO_DATA_SUBDIRECTORY/ALL.phase3_shapit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" #MODIFY: Location of VCF with reference populations
   subpops: "accessory/1000G_PopLabels.txt" #MODIFY
   genmap: "PATH_TO_DATA_SUBDIRECTORY/genetic_map_hg19.txt" #MODIFY
-  phased_bcf: 'none'
+  subset_bcf: 'none' #Not required. If the 'vcf' file had already been subset for the pops listed below (e.g. in a prior run), this can be provided here to avoid needing to repeat the step.
 singularity:
   use_singularity: 'true'
   image: 'DIRECTORY_CONTAINING/AncestryInference.sif' # MODIFY
