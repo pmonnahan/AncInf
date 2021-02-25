@@ -27,8 +27,15 @@ POPFILE = config['reference']['subpops']
 MAPFILE = config['reference']['genmap']
 SAMPLES = config['samples']
 PYTHON = config['python']
+BASE = config['outname']  # Base prefix used for naming files is set as basename of
+INPUT = f"input/{BASE}"
+# Set default internal variables
+PHASE_MAP = f"{os.getcwd()}/accessory/Shapeit4_genetic_map"
+NEW_POPFILE = f"{os.getcwd()}/accessory/Population_Map_File.txt"
 
-if config['reference']['subset_bcf'] == 'none':
+
+#This section allows for the use of a subsetted, phased BCF generated from a prior run of the prep_RefVCF step.
+if config['reference']['subset_bcf'] == 'none': #If no file was provided, format filename as expected to be generated from prep_RefVCF
     REFBCF=f"{os.getcwd()}/bcfs/{os.path.basename(REFFILE).strip('.gz').strip('.vcf').strip('.bcf')}.subset.bcf"
 elif os.path.exists(config['reference']['subset_bcf']):
     REFBCF=config['reference']['subset_bcf']
@@ -40,33 +47,28 @@ dirs = [f"{os.getcwd()}/{x}" for x in ["input", "vcfs", "bcfs", "rfmix", "access
 for directory in dirs:
     if not os.path.exists(directory): os.mkdir(directory)
 for file in [QUERY, REFFILE, POPFILE, MAPFILE, REFBCF, SAMPLES]:
-    if not os.path.isabs(file):
-        if os.path.exists(f"{os.getcwd()}/{file}"):
+    if not os.path.isabs(file): #Check if file is absolute or relative path
+        if os.path.exists(f"{os.getcwd()}/{file}"): #Create absolute path if not
             dirs.append(f"{os.getcwd()}/{os.path.dirname(file)}")
     else: dirs.append(os.path.dirname(file))
 
+#Configure the singularity command.  All necessary paths that will be used by singularity must be provided in the --bind statement
 if config['singularity']['use_singularity'] == 'true' and config['singularity']['image'] != "none":
     bind_paths = ",".join(set(dirs))
     CMD_PREFIX = f"set +u; {config['singularity']['module']}; singularity exec --bind {bind_paths},{os.getcwd()} {config['singularity']['image']}"
-    #He has to specify version of singularity...
+    #Andy Dewan has to specify version of singularity...
     CODE = f"{os.getcwd()}/{config['singularity']['code']}"
 else:
     CMD_PREFIX = config['cmd_prefix']
     CODE = config['dir']['code']
 
-BASE = config['outname']  # Base prefix used for naming files is set as basename of
-INPUT = f"input/{BASE}"
-
-# If set to true, the reference populations will be reanalyzed.  Useful for when reference populations are themselves admixed.
+# If set to true, the reference populations will be reanalyzed to identify admixed regions in reference individuals.  Useful for when reference populations are themselves admixed.
 if RF_REANALYZE == 'true':
-    RF_REANALYZE = '--reanalyze-reference -e 6'
+    RF_REANALYZE = '--reanalyze-reference -e 6' #-e 6 specifies that 6 iterations of the EM algorithm will be performed for reanalysis of reference populations.  This iterations take a long time, so increasing this value will greatly increase run time
 else:
     RF_REANALYZE = ''
 
-# Set default internal variables
-PHASE_MAP = f"{os.getcwd()}/accessory/Shapeit4_genetic_map"
-NEW_POPFILE = f"{os.getcwd()}/accessory/Population_Map_File.txt"
-
+#Create list of individuals in the query dataset.
 INDS = []
 with open(QUERY + ".fam", 'r') as pop_file:
     for line in pop_file:
@@ -80,13 +82,13 @@ localrules: all, phase_map, pop_map, clean
 
 RFMIX_OUT = expand(f"rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS)
 
-def get_prep_RefVCF_input(wildcards):
+def get_prep_RefVCF_input(wildcards): #Determine if prep_RefVCF needs to be run
     input = [NEW_POPFILE]
     if config['reference']['subset_bcf'] == "none": input.append(REFFILE)
     else: input.append(REFBCF)
     return(input)
 
-rule all:
+rule all: #Primary rule whose input values determine which outputs (and corresponding rules) will be run by snakemake
     input:
         f"{BASE}-rulegraph.png",
         f"{INPUT}.bed",
@@ -97,7 +99,7 @@ rule all:
 #         expand(f"beds/{{ind}}_A.bed", ind=INDS),
 #         expand(f"karyograms/{{ind}}_karyo.png", ind=INDS),
 
-rule clean:
+rule clean: #Run 'snakemake clean' to clean out results.  Useful for rerunning from scratch.
     shell:
         "rm vcfs/*; rm bcfs/*; rm rfmix/*"
 
@@ -106,7 +108,7 @@ rule make_rulegraph:
     shell:
         f"snakemake --rulegraph --configfile workflow/config.yml > {os.getcwd()}/accessory/Pipeline_DAG.dot; {CMD_PREFIX} dot -Tpng {os.getcwd()}/accessory/Pipeline_DAG.dot > {{output}}"
 
-rule QCcombine_query:
+rule QCcombine_query: #Optional QC step that is typically not used.  Preferable to use external QC pipeline.
     input: f"{QUERY}.bed"
     output: f"{INPUT}.bed"
     params:
@@ -118,11 +120,11 @@ rule QCcombine_query:
         else:
             shell(f"{CMD_PREFIX} plink --bfile {QUERY} --make-bed --out {INPUT}")
 
-rule parse_plink:
+rule parse_plink: #Split input plink file by chromosome and convert to VCF
     input: f"{INPUT}.bed"
     output: f"{os.getcwd()}/vcfs/{BASE}.chr{{chrom}}.vcf"
     run:
-        if SAMPLES == 'all':
+        if SAMPLES == 'all': #Optionally, subset PLINK data based on a list of samples
             shell(f"{CMD_PREFIX} plink --bfile {INPUT} --chr {{wildcards.chrom}} --keep-allele-order --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid")
         elif os.path.exists(SAMPLES):
             shell(f"{CMD_PREFIX} plink --bfile {INPUT} --chr {{wildcards.chrom}} --keep {SAMPLES} --keep-allele-order --out vcfs/{BASE}.chr{{wildcards.chrom}} --recode vcf-iid")
@@ -135,31 +137,30 @@ rule compress_and_index:
     output: f"{os.getcwd()}/vcfs/{BASE}.chr{{chrom}}.vcf.gz"
     shell: f"{CMD_PREFIX} bgzip {{input}}; {CMD_PREFIX} tabix -p vcf {{output}}"
 
-rule phase_map:
+rule phase_map: #Parse genetic map by chromosome
     input: MAPFILE
     output: f"{os.getcwd()}/accessory/Shapeit4_genetic_map{{chrom}}"
     shell: f"{CMD_PREFIX} {PYTHON} {CODE}/phase_map.py -i {{input}} -o {os.getcwd()}/accessory/Shapeit4_genetic_map"
 
-rule pop_map:
+rule pop_map: #Create file that links each individual to the superpopulations (ancestries) that we want to infer with RFMix.
     input: POPFILE
     output: f"{os.getcwd()}/accessory/Population_Map_File.txt"
     shell: f"{CMD_PREFIX} {PYTHON} {CODE}/pop_map.py -i {{input}} -p {RF_REFPOPS} -n {RF_POPNAME} -o {NEW_POPFILE}"
 
-rule prep_RefVCF:
+rule prep_RefVCF: #Subset reference VCF down to individuals from the superpopulations of interest.
     input: get_prep_RefVCF_input
     output: f"{os.getcwd()}/bcfs/{os.path.basename(REFBCF)}"
     threads: int(config['bcftools']['threads'])
     run:
-        if config['reference']['subset_bcf'] == 'none':
+        if config['reference']['subset_bcf'] == 'none': #As mentioned above, user can provide a subsetted, phased BCF (e.g. from a prior run) to avoid rerunning this time-costly step.
             with open('prep_RefVCF.sh', 'w') as temp_sh:
                 temp_sh.write(f"awk \'{{print $1}}\' {input[0]} | bcftools view -S - {input[1]} -Ob -o {output} --force-samples --threads {threads}; bcftools index {output} --threads {threads}\n")
             shell("{CMD_PREFIX} sh prep_RefVCF.sh")
-        else:
+        else: #If subsetted BCF was provided, just reindex it.
             shutil.copy(REFBCF, f"bcfs/{os.path.basename(REFBCF)}")
             shell(f"{CMD_PREFIX} bcftools index {{output}} --threads {config['bcftools']['threads']}")
 
-
-rule phase:
+rule phase: #Phase the parsed VCF files generated by parse_plink.
     input:
         f"{os.getcwd()}/vcfs/{BASE}.chr{{chrom}}.vcf.gz",
         f"{os.getcwd()}/accessory/Shapeit4_genetic_map{{chrom}}",
@@ -167,19 +168,19 @@ rule phase:
     output: f"{os.getcwd()}/bcfs/{BASE}.chr{{chrom}}.phz.bcf"
     threads: int(config['phase']['threads'])
     run:
-        if config['phase']['sequence_data'] == 'true':
+        if config['phase']['sequence_data'] == 'true': #Phasing parameters can be optimized (by --sequencing flag) for WGS data.
             shell(f"{CMD_PREFIX} shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --sequencing -T {{threads}} --reference {{input[2]}} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && {CMD_PREFIX} bcftools index {{output}} --threads {{threads}}")
         else:
             shell(f"{CMD_PREFIX} shapeit4 -I {{input[0]}} -M {PHASE_MAP}{{wildcards.chrom}} -O {{output}} --region {{wildcards.chrom}} --pbwt-depth {config['phase']['pbwt_depth']} -T {{threads}} --reference {{input[2]}} --log bcfs/{BASE}.chr{{wildcards.chrom}}.phz.bcf.log && {CMD_PREFIX} bcftools index {{output}} --threads {{threads}}")
 
-rule infer_ancestry:
+rule infer_ancestry: #This is the step that runs RFMix.
     input: f"{os.getcwd()}/bcfs/{BASE}.chr{{chrom}}.phz.bcf", f"{os.getcwd()}/accessory/Population_Map_File.txt"
     output: f"{os.getcwd()}/rfmix/{BASE}.chr{{chrom}}.rfmix.Q"
     threads: int(config['rfmix']['threads'])
     shell:
         f"{CMD_PREFIX} rfmix -f {{input[0]}} -r {REFBCF} -m {{input[1]}} -g {MAPFILE} -s {config['rfmix']['window_size']} -o rfmix/{BASE}.chr{{wildcards.chrom}} --chromosome={{wildcards.chrom}} --n-threads={{threads}} -G {RF_GEN} {RF_REANALYZE}"
 
-rule make_hap_beds:
+rule make_hap_beds: #Optional step that is not run by default and hasn't been updated for a long time.  Prepares data for visualization with plot_karyograms
     input: RFMIX_OUT
     output: "beds/{ind}_A.bed"
     run:
@@ -187,13 +188,13 @@ rule make_hap_beds:
             temp_sh.write(f"source activate py27; python {CODE}/msp2bed.py --rfmix rfmix/{BASE} --ind {wildcards.ind} --out beds/{wildcards.ind}\n")
         shell(f"{CMD_PREFIX} {{wildcards.ind}}_A.sh; rm {{wildcards.ind}}_A.sh")
 
-rule plot_karyograms:
+rule plot_karyograms: #Optional step that is likely deprecated.  Produce karyogram (painted chromosomes) for each individual.
     input: "beds/{ind}_A.bed"
     output: "karyograms/{ind}_karyo.png"
     shell:
         f"{CMD_PREFIX} source activate py27; python {CODE}/plot_karyogram.py --bed_a beds/{{wildcards.ind}}_A.bed --bed_b beds/{{wildcards.ind}}_B.bed --ind {{wildcards.ind}} --centromeres accessory/centromeres_hg19.bed --pop_order beds/pop_order.txt --out karyograms/{{wildcards.ind}}_karyo.png"
 
-rule make_hap_beds_wQual:
+rule make_hap_beds_wQual: #Experimental step that may be used to summarize 'quality' of ancestry calls in each window.  Counts number of SNPs in a window that are discordant for most likely ancestry.
     input: RFMIX_OUT
     output: "beds/{ind}_A_Qual.bed"
     run:
@@ -201,12 +202,12 @@ rule make_hap_beds_wQual:
             temp_sh.write(f"source activate py27; python {CODE}/msp2bed.py --rfmix rfmix/{BASE} --ind {wildcards.ind} --out beds/{wildcards.ind} --Qual\n")
         shell(f"{CMD_PREFIX} {{wildcards.ind}}_A.sh; rm {{wildcards.ind}}_A.sh")
 
-rule make_report:
+rule make_report: #Final step to create a PDF report that summarizes the most relevant results.
     input: expand(f"{os.getcwd()}/rfmix/{BASE}.chr{{chrom}}.rfmix.Q", chrom=CHROMS), f"{BASE}-rulegraph.png"
     output: f"{BASE}-AncestryInference-report.pdf"
     run:
-        if not os.path.exists("chrom_plots"): os.mkdir("chrom_plots")
-        with open("scripts/gather_report_data.sh", 'w') as report_cmds:
+        if not os.path.exists("chrom_plots"): os.mkdir("chrom_plots") #This directory will contain a set of png files showing average ancestry along each chromosome.
+        with open("scripts/gather_report_data.sh", 'w') as report_cmds: #This shell script generates some ancillary data and also formats a call to render the R(markdown) with the specified arguments.
             report_cmds.write(f"bcftools query -l {REFBCF} | grep -f - accessory/Population_Map_File.txt > accessory/realized_ref_samples.txt\n")
             report_line = f"echo \'rmarkdown::render(\"scripts/AncInf_report.Rmd\", output_file=\"{BASE}-AncestryInference-report.pdf\", " \
                           f"params=list(rfmix_dir=\"rfmix\", " \
@@ -216,4 +217,4 @@ rule make_report:
                           f"rulegraph_file=\"{BASE}-rulegraph.png\", " \
                           f"config_file=\"workflow/config.yml\"))\' | R --vanilla"
             report_cmds.write(report_line)
-        shell(f"{CMD_PREFIX} sh scripts/gather_report_data.sh; mv scripts/{BASE}-AncestryInference-report.pdf {BASE}-AncestryInference-report.pdf")
+        shell(f"{CMD_PREFIX} sh scripts/gather_report_data.sh; mv scripts/{BASE}-AncestryInference-report.pdf {BASE}-AncestryInference-report.pdf") #This is the command that executes the shell script, which executes Rmarkdown.

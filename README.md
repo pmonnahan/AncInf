@@ -26,16 +26,22 @@ Human local ancestry inference using [RFmix](https://www.ncbi.nlm.nih.gov/pmc/ar
 ## Requirements
 
 ### Snakemake
-The pipeline is coordinated and run on an HPC (or locally) using _Snakemake_.  On UMN's HPC, snakemake can be installed by:
-
+The pipeline is coordinated and run on an HPC (or locally) using _Snakemake_.  To install snakemake, first create a virtual environment via:
+  
     module load python3/3.6.3_anaconda5.0.1
-    conda install -c conda-forge -c bioconda snakemake python=3.6
+    conda install -c conda-forge mamba
+    mamba create -c conda-forge -c bioconda -n <your_environment_name> snakemake
+  
+This will create a new virtual environment and install `snakemake`.  Then, activate this environment and perform following installations:
 
-The `module load` command will likely need to be run each time prior to use of Snakemake.
+    conda activate <your_environment_name>
+    conda install numpy yaml pandas
 
-Alternatively, you can try installing _snakemake_ via _pip_:
+Anytime you need to run the pipeline, activate this environment beforehand via:
 
-    pip3 install --user snakemake pyaml
+    conda activate <environment_name>
+
+If you choose not to create an environment, you must ensure that these packages are installed and available for your python installation.
 
 ### Singularity
 

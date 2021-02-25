@@ -7,31 +7,25 @@ __default__:
   mem: "5G"
   ntasks: "1"
   nodes: "1"
-  mail-user: "pmonnaha@umn.edu"
+  mail-user: "pmonnaha@umn.edu" #MODIFY
   mail-type: "NONE"
   o: 'OandE/{rule}.{wildcards}.out'
   e: 'OandE/{rule}.{wildcards}.err'
 
-QCcombine_query:
-  time: "4:00:00"
-  mem: "5G"
-  ntasks: "1"
-  nodes: "1"
-
-prep_RefVCF:
+prep_RefVCF: #32gb for 24hrs is sufficient
   time: "24:00:00"
   mem: "32G"
   ntasks: "1"
   nodes: "1"
 
-phase:
+phase: #32gb for 24hrs is sufficient
   time: "24:00:00"
   mem: "32G"
   nodes: "1"
 
-infer_ancestry:
-  time: "48:00:00"
-  mem: "64G"
+infer_ancestry: #Varies greatly depending on size of dataset.
+  time: "48:00:00" #The 'reanalyze reference' option specified in config file will increase runtimes by 6x.  Arrays will take <24 hrs, but WGS (or imputed) can take >48 with 240Gb RAM and 48 cores (specified in config file)
+  mem: "64G" #64Gb is sufficient for arrays with several hundred individuals.  Imputed ADMIRAL data required 240Gb for large chromosomes.
   nodes: "1"
 
 
