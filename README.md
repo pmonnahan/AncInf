@@ -1,4 +1,4 @@
-# Local Ancestry Inference
+#  Ancestry Inference
 
 Human local ancestry inference using [RFmix](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3738819/).  The basic workflow is to parse the input PLINK file by chromosome, perform reference-based haplotype phasing on the data using [ShapeIt4](https://odelaneau.github.io/shapeit4/), and, finally, perform local ancestry inference with RFMix.  More information is provided in the _Pipeline Overview_ below.  With the RFMix output, admixture mapping (i.e. associating local ancestry with phenotype) can be accomplished via a separate pipeline found [here](https://github.com/pmonnahan/admixMap).
 
@@ -83,18 +83,9 @@ However, multiple steps in the pipeline have high resource demands, and so are u
 
 where -j specifies the number of jobs that can be submitted at once.  Note that the 'qsub' command is specific to the commonly-used PBS scheduler.  To run on a different HPC scheduler, the command would need to be modified accordingly.  For example, to coordinate submission to a slurm scheduler, the following command would be used:
 
-    snakemake --cluster "sbatch --no-requeue --time={cluster.time} --mem-per-cpu={cluster.mem-per-cpu} --ntasks={cluster.ntasks} --nodes={cluster.nodes} --mail-user={cluster.mail-user} --mail-type={cluster.mail-type} -o {cluster.o} -e {cluster.e} -A {cluster.A}"" --cluster-config workflow/cluster_yale.yaml -j 32
+    snakemake --cluster "sbatch --no-requeue --partition={cluster.p} --time={cluster.time} --mem={cluster.mem} --ntasks={cluster.ntasks} --nodes={cluster.nodes} --mail-user={cluster.mail-user} --mail-type={cluster.mail-type} -o {cluster.o} -e {cluster.e} -A {cluster.A}" --cluster-config workflow/cluster_yale.yaml -j 32
 
 Note also that a different _cluster.yaml_ file is required for the different scheduler.  If you open and inspect the _cluster.yaml_ file vs the _cluster_yale.yaml_ file, you will see syntax that is specific to PBS and slurm schedulers, respectively.  
-
-One additional change in the _config.yml_ is needed in order to correctly submit jobs to the HPC.  The relevant entries are under the `run_settings` section of the config file:
-
-    run_settings:
-      local_run: 'false'
-      cluster_config: 'workflow/cluster.yaml'
-      scheduler: 'pbs'
-      
-Here, it is necessary that the `cluster_config` entry is set to the path of the cluster.yaml file that will be used in the snakemake command.  Also, the scheduler must correspond to the syntax used in the snakemake command and cluster.yaml file.  I should point out that these additional changes are needed for responsibly using PLINK within a snakemake framework, and are not directly needed for snakemake.  PLINK will attempt to auto-detect available resources upon running regardless of the resources that were requested when the job was submitted.  Therefore, we have to read and parse the requested resources in the cluster config file in order for them to be communicated to PLINK from within the Snakefile.  
 
 ### Other notes
 
@@ -111,7 +102,15 @@ where _rule\_name_ indicates the 'rule' (i.e. job) in the Snakefile that you wis
 Also, it is often very helpful to do a 'dry-run' of the pipeline in which the different steps and dependencies are printed to screen, but no actual jobs are executed.  This can be helpful to ensure that config entries are correct, etc.  To perform a dry-run, do:
 
     snakemake -nrp
+
+#### Unlocking the working directory
+
+When _snakemake_ is launched it will place a lock on the working directory, such that other _snakemake_ runs are prohibited from starting.  When _snakemake_ finishes or errors out, it will remove this lock.  However, sometimes this lock is not correctly removed.  This can occur, for example, if the VPN drops connection while _snakemake_ is running.  If you receive a "Directory cannot be locked..." error message from _snakemake_ and you are sure that no other _snakemake_ processes are currently running, you can unlock the directory by:
+
+    snakemake --unlock
     
+Then, you can run the usual _snakemake_ command to restart the pipeline.
+  
 #### Debugging and error reports
 
 Should an error be encountered in a job, snakemake will halt the pipeline and indicate in the terminal that an error has occurred.  The offending job will also be printed in red in the terminal window.  More information on why the job failed can be found in the 'stdout' and 'stderr' files that are output to the _'OandE'_ directory and will be labelled with the jobname.

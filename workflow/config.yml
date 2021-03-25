@@ -19,7 +19,7 @@ rfmix:
   threads: "12" # Number of processors to use for parallel computation.  12 is good for array-sized datasets, but I've increased up to 48 for WGS or imputed data.
   generations: "8" #Generations since admixture began.  7 or 8 is often used for African-American admixture and 12 for Latinx admixture.  Appropriate value for when query data contains a mix of ancestries is an open question. Best approach would be to analyze separately.
   reanalyze_reference: "true" #In the case a set of reference haplotypes may not be of "pure" ancestry and may themselves be somewhat admixed, the option --reanalyze-reference will cause the program to analyze the reference haplotypes as if they were query haplotypes, in addition to analyzing the query input.
-  window_size: "0.02"  # Specified in cM.  Default is 0.2 cM, which corresponds to ~100 - 150 kb windows.  If fewer than 10 SNPs are present in the window, then window is expanded.  For arrays, ~0.2 is likely the max resolution, but WGS data could handle 0.02
+  window_size: "0.2"  # Specified in cM.  Default is 0.2 cM, which corresponds to ~100 - 150 kb windows.  If fewer than 10 SNPs are present in the window, then window is expanded.  For arrays, ~0.2 is likely the max resolution, but WGS data could handle 0.02
 chroms: 'all'
 bcftools:
   threads: '6' #6 is reasonable here
