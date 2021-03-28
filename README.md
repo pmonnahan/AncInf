@@ -79,13 +79,20 @@ The entire pipeline can be executed on a local machine (not recommended) or on a
 
 However, multiple steps in the pipeline have high resource demands, and so are unlikely to be able to be run locally.  This option exists primarily for testing and troubleshooting, so the remainder of the  documentation assumes that the pipeline will be executed on an HPC.  In order to coordinate the use of the HPC, the following modifications to the snakemake command are required:
 
-    snakemake --cluster "qsub -l {cluster.l} -M {cluster.M} -A {cluster.A} -m {cluster.m} -o {cluster.o} -e {cluster.e} -r {cluster.r}" --cluster-config workflow/cluster.yaml -j 32
+    snakemake --cluster "sbatch --no-requeue --partition={cluster.p} --time={cluster.time} --mem={cluster.mem} --ntasks={threads} --nodes={cluster.nodes} --mail-user={cluster.mail-user} --mail-type={cluster.mail-type} -o {cluster.o} -e {cluster.e} -A {cluster.A}" --cluster-config workflow/cluster_yale.yaml -j 32
 
-where -j specifies the number of jobs that can be submitted at once.  Note that the 'qsub' command is specific to the commonly-used PBS scheduler.  To run on a different HPC scheduler, the command would need to be modified accordingly.  For example, to coordinate submission to a slurm scheduler, the following command would be used:
+where -j specifies the number of jobs that can be submitted at once. 
 
-    snakemake --cluster "sbatch --no-requeue --partition={cluster.p} --time={cluster.time} --mem={cluster.mem} --ntasks={cluster.ntasks} --nodes={cluster.nodes} --mail-user={cluster.mail-user} --mail-type={cluster.mail-type} -o {cluster.o} -e {cluster.e} -A {cluster.A}" --cluster-config workflow/cluster_yale.yaml -j 32
 
-Note also that a different _cluster.yaml_ file is required for the different scheduler.  If you open and inspect the _cluster.yaml_ file vs the _cluster_yale.yaml_ file, you will see syntax that is specific to PBS and slurm schedulers, respectively.  
+One additional setting in the _config.yml_ is needed in order to correctly submit jobs to the HPC.  The relevant entries are under the `run_settings` section of the config file:
+
+    run_settings:
+      local_run: 'false'
+      cluster_config: 'workflow/cluster_slurm.yaml'
+      scheduler: 'slurm'
+      
+Here, it is necessary that the `cluster_config` entry is set to the path of the cluster_slurm.yaml file that will be used in the snakemake command.  Also, the scheduler must correspond to the syntax used in the snakemake command and cluster.yaml file.  I should point out that these additional changes are needed for responsibly using PLINK within a snakemake framework, and are not directly needed for snakemake.  PLINK will attempt to auto-detect available resources upon running regardless of the resources that were requested when the job was submitted.  Therefore, we have to read and parse the requested resources in the cluster config file in order for them to be communicated to PLINK from within the Snakefile.  
+
 
 ### Other notes
 
@@ -95,13 +102,23 @@ One attractive feature of _snakemake_ is its ability to keep track of the progre
 
 To run a specific part of the pipeline, do:
 
-    snakemake -R <rule_name> --cluster "qsub -l {cluster.l} -M {cluster.M} -A {cluster.A} -m {cluster.m} -o {cluster.o} -e {cluster.e} -r {cluster.r}" --cluster-config workflow/cluster.yaml -j 20 --rerun-incomplete
+    snakemake -R <rule_name> --cluster "sbatch --no-requeue --partition={cluster.p} --time={cluster.time} --mem={cluster.mem} --ntasks={threads} --nodes={cluster.nodes} --mail-user={cluster.mail-user} --mail-type={cluster.mail-type} -o {cluster.o} -e {cluster.e} -A {cluster.A}" --cluster-config workflow/cluster_yale.yaml -j 20 --rerun-incomplete
 
-where _rule\_name_ indicates the 'rule' (i.e. job) in the Snakefile that you wish to run.
+where _rule\_name_ indicates the 'rule' (i.e. job) in the Snakefile that you wish to run.  Or, you can request a specific file by providing the filename at the end of the command.  You may need to include the -F (i.e. force) if the output file already exists and you want to overwrite it.
 
 Also, it is often very helpful to do a 'dry-run' of the pipeline in which the different steps and dependencies are printed to screen, but no actual jobs are executed.  This can be helpful to ensure that config entries are correct, etc.  To perform a dry-run, do:
 
     snakemake -nrp
+    
+NOTE: It is convenient to make an alias in your ~/.bashrc file to run snakemake on the cluster without having to type the --cluster... part of the command every time.  For me, it looked like this:
+
+    alias snakeslurm="snakemake -k --cluster 'sbatch --no-requeue --partition={cluster.p} --time={cluster.time} --mem={cluster.mem} --ntasks={threads} --job-name={cluster.job-name} --nodes={cluster.nodes} --mail-user={cluster.mail-user} --mail-type={cluster.mail-type} -o {cluster.o} -e {cluster.e} -A {cluster.A}' --cluster-config workflow/cluster_slurm.yaml"
+
+This way, I can just do:
+
+    snakeslurm -j 25
+
+To launch snakemake on the cluster.
 
 #### Unlocking the working directory
 
@@ -152,7 +169,7 @@ The reference VCF to be used for phasing as well as for ancestry inference is pr
       genmap: "PATH_TO_DATA_SUBDIRECTORY/genetic_map_hg19.txt"
       phased_bcf: 'none`  
 
-There are two required files that need to accompany the reference VCF, and these are provided at the `subpops` and `genmap` entries.  The `subpops` file should be a text file with two columns: sample ID as it appears in the VCF in the first column and the subpopulation label for that sample in the second column.  If using the 1000Genomes VCF, then the `subpop` file was automatically downloaded to the _accessory_ subdirectory, and the `subpop` entry does not need to be changed.  The `genmap` file specifies the genetic map for the reference genome and is too large to be hosted on GitHub.  However, the hg19 genetic map is available [here](https://mathgen.stats.ox.ac.uk/impute/1000GP_Phase3.html) or by request.  The file contains 3 space-delimited columns: chromosome, base position, genetic position.  
+There are two required files that need to accompany the reference VCF, and these are provided at the `subpops` and `genmap` entries.  The `subpops` file should be a text file with two columns: sample ID as it appears in the VCF in the first column and the subpopulation label for that sample in the second column.  If using the 1000Genomes VCF, then the `subpop` file was automatically downloaded to the _accessory_ subdirectory.  The `genmap` file specifies the genetic map for the reference genome and is too large to be hosted on GitHub.  However, the hg19 genetic map is available [here](https://mathgen.stats.ox.ac.uk/impute/1000GP_Phase3.html) or by request.  The file contains 3 space-delimited columns: chromosome, base position, genetic position.  
 
 It is assumed that the reference VCF file has been filtered, phased, and indexed. The VCF does NOT need to be subsetted to include only the individuals from the desired reference subpopulations.  This is accomplished by the initial steps of the pipeline, using the `subpops` file described above along with the comma-separated lists (no spaces!) in the `ref_pops` and `pop_names` entries under the `rfmix` section of the config file.  
 
